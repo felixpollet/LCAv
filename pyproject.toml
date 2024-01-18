@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "lcav"
+version = "0.0.0"
+description = "LCAv is a Python toolbox for performing rapid, in-loop life cycle assessments of air transport systems"
+authors = [
+    "Félix POLLET <felix.pollet@isae-supaero.fr>",
+    "Scott DELBECQ <scott.delbecq@isae-supaero.fr>",
+    "Thomas PLANES <thomas.planes@isae-supaero.fr>"
+]
+keywords = ["aviation", "lca"]
+license = "GPL-3.0-only"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+lca-algebraic = "^1.0.5"
+ipywidgets = "^8.1.1"
+plotly = "^5.0.0"
+ipysheet = "^0.7.0"
+"ruamel.yaml" = "^0.18.5"
+matplotlib = "^3.8.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
