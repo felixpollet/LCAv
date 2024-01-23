@@ -1,0 +1,47 @@
+project: project_name
+
+database:  # either vanilla ecoinvent or a previously modified database that include pre-defined activities (for example, fuel production pathways as an aggregation of other ecoinvent activities)
+    name: ecoinvent 3.9_cutoff_ecoSpold02
+    path: 'D:/THESE/LCA_databases/ecoinvent 3.9_cutoff_ecoSpold02/datasets/'
+
+model:
+    functional_unit_scaler: scaler_value  # All subprocesses will be multiplied by the functional unit scaler. Can be a float or an expression with parameters (default is 1.0)
+
+    background_process_1: 
+        id: 'a9f8412fe79b4fe74771ddfbeebb3f98'  # id is only necessary for background processes. It corresponds to the identifier from the background database.
+        exchange: 3.0  # can be a float or an expression. Default is 1.
+        
+    foreground_process_1: 
+        # id not provided because this process contains sub-processes
+        exchange: a * b + c
+        unit: kilogram  # unit can be provided (default is None)
+
+        background_process_2:
+            id: '9afe5ffc45f1b043596a7901a59c98eb'  # last process before background: id must be provided
+            exchange: d
+
+        background_process_3:
+            id: '11cd946a783d8de6f814fc2f5c3b4782'  # last process before background: id must be provided
+            # default exchange value is 1.0
+
+    switch_process:
+        is_switch: True  # process will be one among the subprocesses provided below. A switch parameter is automatically created to allow the user to select the process during runtime
+        background_process_a:
+            id: '52e3cdd70890530eada4fbcef2741406'
+            exchange: 1.0
+        foreground_process_b:
+            exchange: 2.0
+            background_process_5: 
+                id: 'da20ff6f4e46c6268b3017121bd0b2f4' 
+                exchange: f + g
+            background_process_6:
+                id: '04ddd164cec6d9ed96cfc299cab21124'
+
+methods:
+    - "('EF v3.1', 'acidification', 'accumulated exceedance (AE)')"
+    - "('EF v3.1', 'climate change', 'global warming potential (GWP100)')"
+
+normalisation: True
+weighting: True  # also encompasses aggregation
+
+# Normalisation and weighting factors doesn't have to be declared here. They will have to be declared in the I/O variable viewer for example.

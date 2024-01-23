@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://json-schema.org/draft-07/schema#",
+  "title": "LCAv configuration file",
+  "description": "Schema for LCAv configuration files",
+  "type": "object",
+  "definitions": {
+    "background_process": {
+      "$comment": "Definition of a background process",
+      "type": "object",
+      "required": [
+            "id"
+          ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "exchange": {
+          "type": [
+            "string",
+            "number"
+          ]
+        }
+      }
+    },
+    "foreground_process": {
+      "$comment": "Definition of an LCA foreground process",
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "is_switch": {
+          "$comment": "Setting of an LCA option",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": {
+        "anyOf": [
+              {
+                "$ref": "#/definitions/foreground_process"
+              },
+              {
+                "$ref": "#/definitions/background_process"
+              }
+            ]
+          }
+      },
+    "model": {
+      "$comment": "Definition of an LCA model",
+      "type": "object",
+      "properties": {
+        "functional_unit_scaler": {
+          "type": [
+            "string",
+            "number"
+          ]
+        }
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/foreground_process"
+          },
+          {
+            "$ref": "#/definitions/background_process"
+          }
+        ]
+      }
+    },
+    "float_or_ndarray": {
+      "$comment": "Definition of value that accepts float or list of floats",
+      "type": [
+        "number",
+        "array"
+      ],
+      "items": {
+        "type": "number"
+      }
+    }
+  },
+  "properties": {
+    "project": {
+      "type": "string"
+    },
+    "database": {
+      "$comment": "Declaration of the background database",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "path"
+      ]
+    },
+    "model": {
+      "$ref": "#/definitions/model"
+    },
+    "methods": {
+      "type": [
+        "array",
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "normalisation": {
+      "type": "boolean",
+      "default": true
+    },
+    "weighting": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "project",
+    "database",
+    "model"
+  ],
+  "additionalProperties": true
+}
+
