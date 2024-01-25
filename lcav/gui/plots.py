@@ -2,16 +2,16 @@
 Plots for life cycle assessments interpretation
 """
 from pyvis.network import Network
-import pandas as pd
 import os
 from IPython.display import display, HTML, IFrame
-from lcav.lca_problem import LCAProblem
+from lcav.lca_problem import LCAProblem, LCAProblemReduced
+from typing import Union
 
 USER_DB = 'Foreground DB'
 default_process_tree_filename = 'process_tree.html'
 
 
-def process_tree(problem: LCAProblem, outfile: str = default_process_tree_filename):
+def process_tree(problem: Union[LCAProblem, LCAProblemReduced], outfile: str = default_process_tree_filename):
     """
     Plots an interactive tree to visualize the activities and exchanges declared in the LCA module.
     """
