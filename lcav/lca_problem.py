@@ -3,6 +3,7 @@ import warnings
 import os
 import dill
 import lca_algebraic as lcalg
+from lca_algebraic.base_utils import error
 from lca_algebraic.helpers import Activity
 import pandas as pd
 from sympy.parsing.sympy_parser import parse_expr
@@ -48,14 +49,13 @@ class LCAProblemReduced:
         Saves the LCA problem for future use.
         """
         if not self.lambdas:
-            warnings.warn(
-                "No symbolic expression registered in LCA problem.")
+            error("No symbolic expression registered in LCA problem.")
         if not file_path.endswith('.pickle'):
             file_path = file_path + '.pickle'
-        dill.dump(self.__dict__, file=open(file_path, 'wb'))  # Export LCAProblemReduced instance
+        dill.dump(self.__dict__, file=open(file_path, 'wb'))  # Export LCAProblemReduced attributes
         print(f"LCA problem saved in {file_path}.")
 
-    def compute_lcia(self, alpha=1, **params):  # TODO: add 'method' parameter to calculate only the provided method
+    def compute_lcia(self, alpha=1, **params):
         """
         Modified version of postMultiLCAAlgebric from lca_algebraic library.
 
@@ -63,6 +63,10 @@ class LCAProblemReduced:
         ----------
         **params : dictionary of parameters and their values for calculating the LCIA
         """
+
+        if self.lambdas is None:
+            error("No symbolic expression registered in LCA problem.")
+            return None
 
         param_length = lcalg.lca._compute_param_length(params)
 
@@ -113,12 +117,20 @@ class LCAProblemReduced:
         Lists the symbolic expressions of the model for each impact method.
         """
         if self.lambdas is None:
-            warnings.warn("No symbolic expressions found.")
+            error("No symbolic expressions found.")
+            return None
         exprs = {method_name: self.lambdas[i] for i, method_name in enumerate(self.methods)}
         df = pd.DataFrame(exprs.values(),
                           index=pd.MultiIndex.from_tuples(exprs.keys()),
                           columns=['Symbolic expressions'])
         return df
+
+    def list_methods(self):
+        """
+        Lists the methods declared in the LCA problem.
+        """
+        methods = pd.DataFrame(self.methods)
+        return methods
 
 
 class LCAProblem:
@@ -162,30 +174,32 @@ class LCAProblem:
         """
         Saves the LCA problem for future use.
         """
-        if not self.lambdas:
-            warnings.warn(
-                "No symbolic expression registered in LCA problem.")
+        if self.lambdas is None:
+            error("No symbolic expression registered in LCA problem.")
         if not file_path.endswith('.pickle'):
             file_path = file_path + '.pickle'
         self.user_db_path = os.path.splitext(file_path)[0] + '.bw2'  # Path(file_path).stem + '.bw2'
         lcalg.export_db(USER_DB, self.user_db_path)  # export foreground database with LCA parameters
-        dill.dump(self.__dict__, file=open(file_path, 'wb'))  # Export LCAProblem instance
+        dill.dump(self.__dict__, file=open(file_path, 'wb'))  # Export LCAProblem attributes
         print(f"LCA problem saved in {file_path} and {self.user_db_path}.")
 
-    def compute_lcia(self, parameters: Dict, extract_activities: List[Activity] = None):
+    def compute_lcia(self, extract_activities: List[Activity] = None, **params):
         """
         Computes the LCIA using the main LCA_algebraic function.
         First, symbolic expressions of the model for each impact are compiled.
         Then, the expressions are evaluated for the parameter values provided.
 
         :param parameters: dict of {parameters: value or list of values}
-        :param extract_activities: Optionnal : list of foregound or background activities. If provided, the result only integrate their contribution.
+        :param extract_activities: Optional : list of foreground or background activities. If provided, the result only integrate their contribution.
 
         :return res: dataframe of calculated impacts for each method.
         """
 
         if extract_activities == [self.model]:
             extract_activities = None
+
+        if self.lambdas is None:
+            self._compile_lcia_functions(extract_activities)
 
         # LCIA calculation
         res = lcalg.multiLCAAlgebric(
@@ -196,7 +210,7 @@ class LCAProblem:
             extract_activities=extract_activities,
 
             # Parameters of the model
-            **parameters
+            **params
         )
         return res
 
@@ -207,6 +221,10 @@ class LCAProblem:
 
         :param extract_activities: list of processes. If provided, the result only integrate their contribution.
         """
+
+        if self.lambdas is None:
+            error("No symbolic expression registered in LCA problem. Compiling LCIA functions...")
+
         # Sub processes to consider for the LCIA (useful to calculate individual contributions)
         #if not isinstance(extract_activities, list):
         #    extract_activities = [extract_activities]
@@ -262,9 +280,7 @@ class LCAProblem:
         """
         Lists the symbolic expressions of the model for each impact method.
         """
-        if self.lambdas is None:
-            warnings.warn("No symbolic expressions found. Compiling LCIA functions...")
-            self._compile_lcia_functions()
+        self._compile_lcia_functions()
         exprs = {method_name: self.lambdas[i] for i, method_name in enumerate(self.methods)}
         df = pd.DataFrame(exprs.values(),
                           index=pd.MultiIndex.from_tuples(exprs.keys()),
@@ -346,8 +362,8 @@ class LCAProblem:
         """
         Lists the methods declared in the LCA problem.
         """
-        res = pd.DataFrame(self.methods)
-        return res
+        methods = pd.DataFrame(self.methods)
+        return methods
 
     @staticmethod
     def list_parameters():
