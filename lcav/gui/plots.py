@@ -11,7 +11,9 @@ USER_DB = 'Foreground DB'
 default_process_tree_filename = 'process_tree.html'
 
 
-def process_tree(problem: Union[LCAProblem, LCAProblemReduced], outfile: str = default_process_tree_filename):
+def process_tree(problem: Union[LCAProblem, LCAProblemReduced],
+                 foreground_only: bool = True,
+                 outfile: str = default_process_tree_filename):
     """
     Plots an interactive tree to visualize the activities and exchanges declared in the LCA module.
     """
@@ -20,7 +22,7 @@ def process_tree(problem: Union[LCAProblem, LCAProblemReduced], outfile: str = d
     net = Network(notebook=True, directed=True, layout=True, cdn_resources='remote')
 
     # Get processes hierarchy
-    df = problem.list_processes()
+    df = problem.list_processes(foreground_only)
     activities = df['activity']
     df['description'] = df['activity'] + '\n' + df['unit'].fillna('')
     descriptions = df['description']

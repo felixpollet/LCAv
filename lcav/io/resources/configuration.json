@@ -1,18 +1,30 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://json-schema.org/draft-07/schema#",
-  "title": "LCAv configuration file",
-  "description": "Schema for LCAv configuration files",
+  "title": "lca-algebraic configuration file",
+  "description": "Schema for defining LCA models in configuration files.",
   "type": "object",
   "definitions": {
     "background_process": {
       "$comment": "Definition of a background process",
       "type": "object",
       "required": [
-            "id"
+            "name"
           ],
       "properties": {
-        "id": {
+        "name": {
+          "type": "string"
+        },
+        "loc": {
+          "type": "string"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unit": {
           "type": "string"
         },
         "exchange": {
@@ -20,6 +32,9 @@
             "string",
             "number"
           ]
+        },
+        "custom_attributes": {
+          "$ref": "#/definitions/custom_attributes"
         }
       }
     },
@@ -37,8 +52,10 @@
           "type": "string"
         },
         "is_switch": {
-          "$comment": "Setting of an LCA option",
           "type": "boolean"
+        },
+        "custom_attributes": {
+          "$ref": "#/definitions/custom_attributes"
         }
       },
       "additionalProperties": {
@@ -52,17 +69,25 @@
             ]
           }
       },
+    "custom_attributes": {
+        "$comment": "Custom attributes for the activity, for example 'phase' or 'subphase'. This is useful to split impact assessment results.",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "attribute": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": ["attribute", "value"]
+        }
+      },
     "model": {
       "$comment": "Definition of an LCA model",
       "type": "object",
-      "properties": {
-        "functional_unit_scaler": {
-          "type": [
-            "string",
-            "number"
-          ]
-        }
-      },
       "additionalProperties": {
         "anyOf": [
           {
@@ -89,20 +114,20 @@
     "project": {
       "type": "string"
     },
-    "database": {
-      "$comment": "Declaration of the background database",
+    "ecoinvent": {
+      "$comment": "Declaration of the background database ecoinvent",
       "type": "object",
       "properties": {
-        "name": {
+        "version": {
           "type": "string"
         },
-        "path": {
+        "system_model": {
           "type": "string"
         }
       },
       "required": [
-        "name",
-        "path"
+        "version",
+        "system_model"
       ]
     },
     "model": {
@@ -127,7 +152,7 @@
   },
   "required": [
     "project",
-    "database",
+    "ecoinvent",
     "model"
   ],
   "additionalProperties": true

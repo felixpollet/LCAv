@@ -41,7 +41,7 @@ methods:
     - "('EF v3.1', 'acidification', 'accumulated exceedance (AE)')"
     - "('EF v3.1', 'climate change', 'global warming potential (GWP100)')"
 
-normalisation: True
-weighting: True  # also encompasses aggregation
+normalisation: True  # not supported yey
+weighting: True  # also encompasses aggregation. Not supported yet.
 
 # Normalisation and weighting factors doesn't have to be declared here. They will have to be declared in the I/O variable viewer for example.
