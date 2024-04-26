@@ -4,14 +4,14 @@ Plots for life cycle assessments interpretation
 from pyvis.network import Network
 import os
 from IPython.display import display, HTML, IFrame
-from lcav.lca_problem import LCAProblem, LCAProblemReduced
-from typing import Union
+from lca_algebraic.activity import Activity
+from lcav.helpers import list_processes
 
 USER_DB = 'Foreground DB'
 default_process_tree_filename = 'process_tree.html'
 
 
-def process_tree(problem: Union[LCAProblem, LCAProblemReduced],
+def process_tree(model: Activity,
                  foreground_only: bool = True,
                  outfile: str = default_process_tree_filename):
     """
@@ -22,7 +22,7 @@ def process_tree(problem: Union[LCAProblem, LCAProblemReduced],
     net = Network(notebook=True, directed=True, layout=True, cdn_resources='remote')
 
     # Get processes hierarchy
-    df = problem.list_processes(foreground_only)
+    df = list_processes(model, foreground_only)
     activities = df['activity']
     df['description'] = df['activity'] + '\n' + df['unit'].fillna('')
     descriptions = df['description']

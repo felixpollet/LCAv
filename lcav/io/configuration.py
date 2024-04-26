@@ -101,21 +101,36 @@ class LCAProblemConfigurator:
         if conf_file_path:
             self.load(conf_file_path)
 
+    def generate(self):
+        """
+        Creates the LCA activities and parameters as defined in the configuration file.
+        Also gets the LCIA methods defined in the conf file.
+        :return: model: the top-level activity corresponding to the functional unit
+        :return: methods: the LCIA methods
+        """
+        # Create model from configuration file
+        project_name, model = self._build_model()
+
+        # Get LCIA methods if declared
+        methods = [eval(m) for m in self._serializer.data.get(KEY_METHODS, [])]
+
+        return project_name, model, methods
+
     def get_problem(self) -> LCAProblem:
         """
-        Builds the LCA problem from current configuration.
+        Builds an LCA problem from current configuration.
         """
 
         # Create new instance of LCA problem
         problem = LCAProblem()
 
-        # Create model from configuration file
-        self._build_model(problem)
+        # Generate LCA problem from conf file
+        project_name, model, methods = self.generate()
 
-        # Add LCIA methods if declared
-        methods = self._serializer.data.get(KEY_METHODS)
-        if methods:
-            problem.methods = self._get_methods()
+        # Set attributes
+        problem.project = project_name
+        problem.model = model
+        problem.methods = methods
                 
         return problem
 
@@ -141,7 +156,7 @@ class LCAProblemConfigurator:
             if key not in json_schema["properties"].keys():
                 _LOGGER.warning('Configuration file: "%s" is not a key declared in LCAv.', key)
 
-    def _setup_project(self, problem):
+    def _setup_project(self):
         """
         Sets the brightway2 project and import the databases 
         """
@@ -149,7 +164,7 @@ class LCAProblemConfigurator:
             raise RuntimeError("read configuration file first")
 
         ### Init the brightway2 project
-        project_name = problem.project = self._serializer.data.get(KEY_PROJECT)
+        project_name = self._serializer.data.get(KEY_PROJECT)
         bw.projects.set_current(project_name)
         
         ### Import Ecoinvent DB
@@ -193,13 +208,15 @@ class LCAProblemConfigurator:
         # You may remove this line if you import a project and parameters from an external source (see loadParam(..))
         agb.resetParams()
 
-    def _build_model(self, problem):
+        return project_name
+
+    def _build_model(self):
         """
         Builds the LCA model as defined in the configuration file.
         """
 
         ### Set up the project
-        self._setup_project(problem)
+        project_name = self._setup_project()
 
         # Get model definition from configuration file
         model_definition = self._serializer.data.get(KEY_MODEL)
@@ -246,7 +263,7 @@ class LCAProblemConfigurator:
         #    )
         #    problem.model = normalized_model
 
-        problem.model = model
+        return project_name, model
     
     def _parse_problem_table(self, group, table: dict, group_switch_param=None):
         """
@@ -357,13 +374,6 @@ class LCAProblemConfigurator:
                         # Parent group is a regular process
                         group.addExchanges({sub_process: exchange})
                     self._parse_problem_table(sub_process, value, switch_param)
-
-    def _get_methods(self):
-        """
-        Gets the LCIA impact methods defined in the configuration file.
-        """
-        methods = [eval(m) for m in self._serializer.data.get(KEY_METHODS)]
-        return methods
 
 
 class _IDictSerializer(ABC):
