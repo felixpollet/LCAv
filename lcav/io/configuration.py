@@ -362,16 +362,19 @@ class LCAProblemConfigurator:
                     ex.save()
         else:
             # Premise is used
-            # Create a parent activity that enables to switch between scenarios
-            years = list(set([str(scenario[KEY_YEAR]) for scenario in self.premise_scenarios]))
+
+            # Create parameters for year, model and pathway
+            years = list(set([scenario[KEY_YEAR] for scenario in self.premise_scenarios]))
             models = list(set([scenario[KEY_MODEL] for scenario in self.premise_scenarios]))
             pathways = list(set([scenario[KEY_PATHWAY].replace('-', '_') for scenario in self.premise_scenarios]))
+            # nb: replaced '-' by '_' in pathway names to avoid issues with lca parameters definition
             year_param = agb.params.all_params().get(
                 KEY_YEAR,  # get switch parameter if already defined
-                agb.newEnumParam(  # create switch parameter if not already exists
+                agb.newFloatParam(  # create float parameter if not already exists
                     name=KEY_YEAR,
-                    values=years,
                     default=years[0],
+                    min=min(years),
+                    max=max(years),
                     dbname=USER_DB
                 )
             )
@@ -393,21 +396,49 @@ class LCAProblemConfigurator:
                     dbname=USER_DB
                 )
             )
+
+            # Store list of years for each combination of model and pathway
+            years_by_combination = {}
+            for scenario in self.premise_scenarios:
+                combination = (scenario[KEY_MODEL], scenario[KEY_PATHWAY])
+                year = scenario[KEY_YEAR]
+                if combination in years_by_combination:
+                    years_by_combination[combination].append(year)
+                else:
+                    years_by_combination[combination] = [year]
+
+            # Get the ecoinvent activity for each combination of model and pathway, and interpolate between years
             acts_dict = {
-                (str(scenario[KEY_YEAR]), scenario[KEY_MODEL], scenario[KEY_PATHWAY].replace('-', '_')): agb.findActivity(
-                    name=name,
-                    loc=loc,
-                    unit=unit,
-                    db_name=f"ecoinvent_{self.ei_model}_{self.ei_version.replace('3.9.1', '3.9')}_{scenario[KEY_MODEL]}_{scenario[KEY_PATHWAY]}_{scenario[KEY_YEAR]}"
-                )
-                for scenario in self.premise_scenarios
+                (combination[0], combination[1].replace('-', '_')):  # for each scenario (model + pathway)
+                    agb.interpolate_activities(  # create linear interpolation of the activity between years
+                        db_name=USER_DB,
+                        act_name=name + f" ({combination[0]}_{combination[1]})",
+                        param=year_param,
+                        act_per_value={
+                            year: agb.findActivity(  # This is the activity for a given model, pathway and year
+                                name=name,
+                                loc=loc,
+                                unit=unit,
+                                db_name=f"ecoinvent_{self.ei_model}_{self.ei_version.replace('3.9.1', '3.9')}_{combination[0]}_{combination[1]}_{year}"
+                            ) for year in years_by_combination[combination]
+                        },
+                    ) if len(years_by_combination[combination]) > 1
+                    else agb.findActivity(  # if only one year for a given model+pathway, no need for interpolation. The activity will be constant.
+                        name=name,
+                        loc=loc,
+                        unit=unit,
+                        db_name=f"ecoinvent_{self.ei_model}_{self.ei_version.replace('3.9.1', '3.9')}_{combination[0]}_{combination[1]}_{years_by_combination[combination][0]}"
+                    )
+                for combination in years_by_combination.keys()
             }
+            # Create parent activity that enables to switch between scenarios
             act = newMultiSwitchAct(
                 dbname=USER_DB,
                 name=key,
-                paramDefList=[year_param, model_param, pathway_param],
+                paramDefList=[model_param, pathway_param],
                 acts_dict=acts_dict
             )
+
         return act
     
     def _parse_problem_table(self, group, table: dict, group_switch_param=None):
