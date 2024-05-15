@@ -6,6 +6,8 @@ import os
 from IPython.display import display, HTML, IFrame
 from lca_algebraic.activity import Activity
 from lcav.helpers import list_processes
+import matplotlib
+import matplotlib.pyplot as plt
 
 USER_DB = 'Foreground DB'
 default_process_tree_filename = 'process_tree.html'
@@ -13,7 +15,8 @@ default_process_tree_filename = 'process_tree.html'
 
 def process_tree(model: Activity,
                  foreground_only: bool = True,
-                 outfile: str = default_process_tree_filename):
+                 outfile: str = default_process_tree_filename,
+                 colormap: str = 'Pastel2'):
     """
     Plots an interactive tree to visualize the activities and exchanges declared in the LCA module.
     """
@@ -24,25 +27,33 @@ def process_tree(model: Activity,
     # Get processes hierarchy
     df = list_processes(model, foreground_only)
     activities = df['activity']
+    parents = df['parent']
     df['description'] = df['activity'] + '\n' + df['unit'].fillna('')
     descriptions = df['description']
-    parents = df['parent']
     amounts = df['exchange']
     levels = df['level']
     dbs = df['database']
 
+    # colors
+    unique_values = df['database'].unique()
+    value_indices = {value: i for i, value in enumerate(unique_values)}
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=len(dbs.unique()), clip=True)
+    mapper = plt.cm.ScalarMappable(norm=norm, cmap=matplotlib.colormaps[colormap])
+    colors = df['database'].apply(lambda x: matplotlib.colors.to_hex(mapper.to_rgba(value_indices[x])))
+
     # Populate network
-    edge_data = zip(activities, descriptions, parents, amounts, levels, dbs)
+    edge_data = zip(activities, descriptions, parents, amounts, levels, dbs, colors)
 
     for e in edge_data:
-        src = e[0]
+        src = e[0] if e[5] == USER_DB else e[0] + f'\n[{e[5]}]'
         desc = e[1]
         dst = e[2]
         w = e[3]
         n = e[4]
         db = e[5]
+        color = e[6]
 
-        color = '#97c2fc' if db == USER_DB else 'lightgrey'
+        #colors[db]  # '#97c2fc' if db == USER_DB else 'lightgrey'
         if dst == "":
             net.add_node(src, desc, title=src, level=n + 1, shape='box', color=color)
             continue

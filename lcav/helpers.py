@@ -1,14 +1,8 @@
-from typing import Dict, List, Union
-import os
-import dill
 import lca_algebraic as agb
-from lca_algebraic.log import warn
-from lca_algebraic import ValueOrExpression
 import pandas as pd
 from sympy.parsing.sympy_parser import parse_expr
-from sympy import Float, S
-import numpy as np
-import concurrent.futures
+from sympy import Float
+import bw2data
 
 USER_DB = 'Foreground DB'
 DEFAULT_PROJECT = 'lcav_default_project'
@@ -179,3 +173,13 @@ def format_number(num, precision=2):
         return "{:.{}f}".format(num, precision)
     else:
         return sci_num
+
+
+def safe_delete_brightway_project(projectname: str) -> None:
+    try:
+        bw2data.projects.delete_project(
+            name = projectname,
+            delete_dir = True
+        )
+    except:
+        pass

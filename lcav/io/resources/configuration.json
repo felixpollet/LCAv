@@ -108,6 +108,25 @@
       "items": {
         "type": "number"
       }
+    },
+    "scenarios": {
+        "$comment": "List of Premise scenarios to generate prospective databases",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "pathway": {
+              "type": "string"
+            },
+            "year": {
+              "type": "number"
+            }
+          },
+          "required": ["model", "pathway", "year"]
+        }
     }
   },
   "properties": {
@@ -121,13 +140,33 @@
         "version": {
           "type": "string"
         },
-        "system_model": {
+        "model": {
           "type": "string"
         }
       },
       "required": [
         "version",
-        "system_model"
+        "model"
+      ]
+    },
+    "premise" : {
+      "$comment": "Declaration of Premise parameters",
+      "type": "object",
+      "properties": {
+        "scenarios": {
+          "$ref": "#/definitions/scenarios"
+        },
+        "update": {
+          "type": [
+            "array",
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "scenarios"
       ]
     },
     "model": {
