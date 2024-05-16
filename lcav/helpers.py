@@ -3,37 +3,31 @@ import pandas as pd
 from sympy.parsing.sympy_parser import parse_expr
 from sympy import Float
 import bw2data
+from typing import List, Union
 
 USER_DB = 'Foreground DB'
 DEFAULT_PROJECT = 'lcav_default_project'
 
 
-def list_processes(model, foreground_only: bool = True) -> pd.DataFrame:
+def list_processes(model, foreground_only: bool = True, custom_attribute: str = None) -> pd.DataFrame:
     """
     Traverses the tree of sub-activities (sub-processes) until background database is reached.
     """
 
-    activities = []
-    units = []
-    locations = []
-    parents = []
-    exchanges = []
-    levels = []
-    dbs = []
-
     def _recursive_activities(act,
-                              activities, units, locations, parents, exchanges, levels, dbs,
+                              activities, units, locations, parents, exchanges, levels, dbs, custom_attributes,
                               parent: str = "", exc: dict = None, level: int = 0):
 
         if exc is None:
             exc = {}
         name = act.as_dict()['name']
         unit = act.as_dict()['unit']
-        loc = act.as_dict()['location'] if 'location' in act.as_dict() else ''
+        loc = act.as_dict().get('location', "")
         if loc not in ['GLO', '']:
             name += f' [{loc}]'
         exchange = _getAmountOrFormula(exc)
         db = act.as_dict()['database']
+        custom_attr = act.as_dict().get(custom_attribute, "")  # get any additional attribute asked by the user
 
         # Stop BEFORE reaching the first level of background activities
         if foreground_only and db != USER_DB:
@@ -46,6 +40,7 @@ def list_processes(model, foreground_only: bool = True) -> pd.DataFrame:
         exchanges.append(exchange)
         levels.append(level)
         dbs.append(db)
+        custom_attributes.append(custom_attr)
 
         # Stop AFTER reaching the first level of background activities
         if db != USER_DB:
@@ -53,34 +48,36 @@ def list_processes(model, foreground_only: bool = True) -> pd.DataFrame:
 
         for exc in act.exchanges():
             if exc.input != act:
-                _recursive_activities(exc.input, activities, units, locations, parents, exchanges, levels, dbs,
+                _recursive_activities(exc.input, activities, units, locations, parents, exchanges, levels, dbs, custom_attributes,
                                       parent=name,
                                       exc=exc,
                                       level=level + 1)
         return
 
-    def _getAmountOrFormula(ex):
-        """ Return either a fixed float value or an expression for the amount of this exchange"""
-        if 'formula' in ex:
-            expr = parse_expr(ex['formula'])
-            try:
-                float(expr)
-                return format_number(float(expr))
-            except TypeError:
-                return expr
-        elif 'amount' in ex:
-            return format_number(ex['amount'])
-        return ""
+    # Initialize lists
+    activities = []
+    units = []
+    locations = []
+    parents = []
+    exchanges = []
+    levels = []
+    dbs = []
+    custom_attributes = []
 
-    _recursive_activities(model, activities, units, locations, parents, exchanges, levels, dbs)
+    # Recursively populate lists
+    _recursive_activities(model, activities, units, locations, parents, exchanges, levels, dbs, custom_attributes)
     data = {'activity': activities,
             'unit': units,
             'location': locations,
             'level': levels,
             'database': dbs,
             'parent': parents,
-            'exchange': exchanges}
+            'exchange': exchanges,
+            }
+    if custom_attribute:
+        data[custom_attribute] = custom_attributes
 
+    # Create DataFrame
     df = pd.DataFrame(data, index=activities)
 
     return df
@@ -174,6 +171,19 @@ def format_number(num, precision=2):
     else:
         return sci_num
 
+
+def _getAmountOrFormula(ex):
+    """ Return either a fixed float value or an expression for the amount of this exchange"""
+    if 'formula' in ex:
+        expr = parse_expr(ex['formula'])
+        try:
+            float(expr)
+            return format_number(float(expr))
+        except TypeError:
+            return expr
+    elif 'amount' in ex:
+        return format_number(ex['amount'])
+    return ""
 
 def safe_delete_brightway_project(projectname: str) -> None:
     try:

@@ -65,8 +65,8 @@ model:
                   
             combustion:
                 custom_attributes:
-                        - attribute: "phase"
-                          value: "combustion"
+                    - attribute: "phase"
+                      value: "combustion"
             
                 chemicals:
                     CO2:
