@@ -20,12 +20,13 @@ from lca_algebraic.params import (
     ParamDef,
 )
 from lca_algebraic.activity import ActivityOrActivityAmount, newActivity
+from lca_algebraic.base_utils import _isOutputExch
 from typing import Dict, List, Union, Tuple
 from functools import reduce
 from collections import defaultdict
 from lcav.helpers import safe_delete_brightway_project
 
-BIOSPHERE3_DB_NAME="biosphere3"
+BIOSPHERE3_DB_NAME = "biosphere3"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,14 +48,17 @@ KEY_UNIT = 'unit'
 KEY_CUSTOM_ATTR = 'custom_attributes'
 KEY_ATTR_NAME = 'attribute'
 KEY_ATTR_VALUE = 'value'
-EXCHANGE_DEFAULT_VALUE = 1.0  # default value for the exchange between two processes
-SWITCH_DEFAULT_VALUE = False  # default foreground process type (True: it is a switch process; False: it is a regular process)
+EXCHANGE_DEFAULT_VALUE = 1.0  # default value for the exchange between two activities
+SWITCH_DEFAULT_VALUE = False  # default foreground activity type (True: it is a switch activity; False: it is a regular activity)
 KEY_METHODS = 'methods'
 KEY_PREMISE = 'premise'
 KEY_SCENARIOS = 'scenarios'
 KEY_YEAR = 'year'
 KEY_PATHWAY = 'pathway'
-KEY_UPDATE = 'update'
+KEY_UPDATE_PREMISE = 'update'
+KEY_UPDATE_ACT = 'update'
+KEY_INPUT_ACT = 'input_activity'
+KEY_NEW_VAL = 'new_value'
 
 
 def _get_unique_activity_name(key):
@@ -62,7 +66,7 @@ def _get_unique_activity_name(key):
     Returns a unique activity name by incrementing a suffix number.
     """
     i = 1
-    while agb.findActivity(key + str(i), db_name=USER_DB, single=False):
+    while agb.findActivity(f'{key}_{i}', db_name=USER_DB, single=False):
         i += 1
     new_key = f'{key}_{i}'
     return new_key
@@ -70,9 +74,9 @@ def _get_unique_activity_name(key):
 
 def _parse_exchange(table: dict):
     """
-    Gets the exchange expression from the table of options for the process, then creates the input parameters and returns the symbolic expression of the exchange
+    Gets the exchange expression from the table of options for the activity, then creates the input parameters and returns the symbolic expression of the exchange
 
-    :param table: the table of options for the process
+    :param table: the table of options for the activity
     :return expr: the symbolic expression
     """
 
@@ -99,7 +103,8 @@ def _parse_exchange(table: dict):
 
 
 def newMultiSwitchAct(dbname, name, paramDefList: Union[List[ParamDef], ParamDef],
-                      acts_dict: Union[Dict[str, ActivityOrActivityAmount], Dict[Tuple[str], ActivityOrActivityAmount]]):
+                      acts_dict: Union[
+                          Dict[str, ActivityOrActivityAmount], Dict[Tuple[str], ActivityOrActivityAmount]]):
     """
     Creates a new switch activity with multiple switch parameters.
     A child activity is selected based on the combination of the switch parameters.
@@ -134,7 +139,8 @@ def newMultiSwitchAct(dbname, name, paramDefList: Union[List[ParamDef], ParamDef
         if isinstance(act, (list, tuple)):
             act, amount = act
         if isinstance(paramDefList, list):
-            exch[act] += amount * reduce(lambda x, y: x*y, [paramDef.symbol(key[i]) for i, paramDef in enumerate(paramDefList)])
+            exch[act] += amount * reduce(lambda x, y: x * y,
+                                         [paramDef.symbol(key[i]) for i, paramDef in enumerate(paramDefList)])
         else:
             exch[act] += amount * paramDefList.symbol(key)  # Regular switch activity
         unit = act["unit"]
@@ -152,7 +158,7 @@ class LCAProblemConfigurator:
 
     :param conf_file_path: if provided, configuration will be read directly from it
     """
-    
+
     def __init__(self, conf_file_path=None):
         self._conf_file = None
         self._serializer = _YAMLSerializer()
@@ -190,7 +196,7 @@ class LCAProblemConfigurator:
         # Syntax validation
         with open_text(resources, JSON_SCHEMA_NAME) as json_file:
             json_schema = json.loads(json_file.read())
-        
+
         validate(self._serializer.data, json_schema)
         # Issue a simple warning for unknown keys at root level
         for key in self._serializer.data:
@@ -219,7 +225,7 @@ class LCAProblemConfigurator:
             quiet=True
         )
         premise_dict = self._serializer.data.get(KEY_PREMISE, dict())
-        sectors_to_update = premise_dict.get(KEY_UPDATE)
+        sectors_to_update = premise_dict.get(KEY_UPDATE_PREMISE)
         if sectors_to_update == 'all':
             ndb.update()
         elif isinstance(sectors_to_update, list):
@@ -228,7 +234,7 @@ class LCAProblemConfigurator:
 
     def _setup_project(self, reset: bool = False):
         """
-        Sets the brightway2 project and import the databases 
+        Sets the brightway2 project and import the databases
         """
         if self._serializer.data is None:
             raise RuntimeError("read configuration file first")
@@ -247,7 +253,7 @@ class LCAProblemConfigurator:
 
         if len(bw.databases) > 0 and not reset:
             print("Initial setup of EcoInvent/Premise already done, skipping. "
-                  "To reset the project use option generate(reset=True).")
+                  "To reset the project use option `reset=True`.")
 
         else:  ### Import Ecoinvent DB
             # User must create a file named .env, that he will not share /commit, and contains the following :
@@ -255,10 +261,11 @@ class LCAProblemConfigurator:
             # ECOINVENT_PASSWORD=<your_password>
             load_dotenv()  # This load .env file that contains the credential for EcoInvent into os.environ
             if not os.getenv("ECOINVENT_LOGIN") or not os.getenv("ECOINVENT_PASSWORD"):
-                raise RuntimeError("Missing Ecoinvent credentials. Please set them in a .env file in the root of the project. \n"
-                                   "The file should contain the following lines : \n"
-                                   "ECOINVENT_LOGIN=<your_login>\n"
-                                   "ECOINVENT_PASSWORD=<your_password>\n")
+                raise RuntimeError(
+                    "Missing Ecoinvent credentials. Please set them in a .env file in the root of the project. \n"
+                    "The file should contain the following lines : \n"
+                    "ECOINVENT_LOGIN=<your_login>\n"
+                    "ECOINVENT_PASSWORD=<your_password>\n")
 
             # This downloads ecoinvent and installs biopshere + technosphere + LCIA methods
             bw2io.import_ecoinvent_release(
@@ -288,35 +295,37 @@ class LCAProblemConfigurator:
         ### Set up the project
         project_name = self._setup_project(reset=reset)
 
+        ### Build the model
+        print("Building LCA model from configuration file...", end=' ')
         # Get model definition from configuration file
         model_definition = self._serializer.data.get(KEY_MODEL)
         model = agb.newActivity(
-            db_name=USER_DB, 
-            name=KEY_MODEL, 
+            db_name=USER_DB,
+            name=KEY_MODEL,
             unit=None
         )
-        
+
         if KEY_NAME in model_definition:
-            # The defined model is only one background process
+            # The defined model is only one background activity
             name = model_definition[KEY_NAME]
             loc = model_definition.get(KEY_LOCATION, None)
             unit = model_definition.get(KEY_UNIT, None)
             categories = model_definition.get(KEY_CATEGORIES, None)
             try:  # Search activity in ecoinvent db
-                sub_process = agb.findActivity(
+                sub_act = agb.findActivity(
                     name=name,
                     loc=loc,
                     unit=unit,
                     db_name=self.source_ei_name
                 )
             except:  # Search activity in biosphere3 db
-                sub_process = agb.findBioAct(
+                sub_act = agb.findBioAct(
                     name=name,
                     loc=loc,
                     categories=categories,
                     unit=unit
                 )
-            model.addExchanges({sub_process: EXCHANGE_DEFAULT_VALUE})
+            model.addExchanges({sub_act: EXCHANGE_DEFAULT_VALUE})
         else:
             # The defined model is a group
             self._parse_problem_table(model, model_definition)
@@ -333,6 +342,7 @@ class LCAProblemConfigurator:
         #        exchanges={model: functional_value}
         #    )
         #    problem.model = normalized_model
+        print("Done.")
 
         return project_name, model
 
@@ -349,7 +359,7 @@ class LCAProblemConfigurator:
                 unit=unit,
                 db_name=self.source_ei_name
             )
-            # Copy activity to foreground database so that we can safely modify it
+            # Copy activity to foreground database so that we can safely modify it in the future
             act = agb.copyActivity(
                 USER_DB,
                 act,
@@ -360,9 +370,8 @@ class LCAProblemConfigurator:
                 if "formula" in ex:
                     del ex["formula"]
                     ex.save()
-        else:
-            # Premise is used
 
+        else:  # Premise is used
             # Create parameters for year, model and pathway
             years = list(set([scenario[KEY_YEAR] for scenario in self.premise_scenarios]))
             models = list(set([scenario[KEY_MODEL] for scenario in self.premise_scenarios]))
@@ -409,25 +418,34 @@ class LCAProblemConfigurator:
 
             # Get the ecoinvent activity for each combination of model and pathway, and interpolate between years
             acts_dict = {
-                (combination[0], combination[1].replace('-', '_')):  # for each scenario (model + pathway)
-                    agb.interpolate_activities(  # create linear interpolation of the activity between years
+                (combination[0], combination[1].replace('-', '_')):  # scenario selection level (model + pathway)
+                    agb.interpolate_activities(  # year selection level (linear interpolation of the act between years)
                         db_name=USER_DB,
-                        act_name=name + f" ({combination[0]}_{combination[1]})",
+                        act_name=name + f"\n({combination[0]}_{combination[1]})",
                         param=year_param,
                         act_per_value={
-                            year: agb.findActivity(  # This is the activity for a given model, pathway and year
-                                name=name,
-                                loc=loc,
-                                unit=unit,
-                                db_name=f"ecoinvent_{self.ei_model}_{self.ei_version.replace('3.9.1', '3.9')}_{combination[0]}_{combination[1]}_{year}"
+                            year: agb.copyActivity(  # safe copy of background act
+                                db_name=USER_DB,
+                                activity=agb.findActivity(  # This is the activity for a given model, pathway and year
+                                    name=name,
+                                    loc=loc,
+                                    unit=unit,
+                                    db_name=f"ecoinvent_{self.ei_model}_{self.ei_version.replace('3.9.1', '3.9')}_{combination[0]}_{combination[1]}_{year}"
+                                ),
+                                code=name + f"\n({combination[0]}_{combination[1]}_{year})"
                             ) for year in years_by_combination[combination]
                         },
                     ) if len(years_by_combination[combination]) > 1
-                    else agb.findActivity(  # if only one year for a given model+pathway, no need for interpolation. The activity will be constant.
-                        name=name,
-                        loc=loc,
-                        unit=unit,
-                        db_name=f"ecoinvent_{self.ei_model}_{self.ei_version.replace('3.9.1', '3.9')}_{combination[0]}_{combination[1]}_{years_by_combination[combination][0]}"
+                    else agb.copyActivity(
+                        db_name=USER_DB,
+                        activity=agb.findActivity(
+                            # if only one year for a given model+pathway, no need for interpolation. The activity will be constant.
+                            name=name,
+                            loc=loc,
+                            unit=unit,
+                            db_name=f"ecoinvent_{self.ei_model}_{self.ei_version.replace('3.9.1', '3.9')}_{combination[0]}_{combination[1]}_{years_by_combination[combination][0]}"
+                        ),
+                        code=name + f"\n({combination[0]}_{combination[1]}_{years_by_combination[combination][0]})"
                     )
                 for combination in years_by_combination.keys()
             }
@@ -440,7 +458,7 @@ class LCAProblemConfigurator:
             )
 
         return act
-    
+
     def _parse_problem_table(self, group, table: dict, group_switch_param=None):
         """
         Feeds provided group, using definition in provided table.
@@ -450,7 +468,7 @@ class LCAProblemConfigurator:
         """
 
         for key, value in table.items():
-            if isinstance(value, dict):  # value defines a subprocess
+            if isinstance(value, dict):  # value defines a sub activity
                 # Check if an activity with this key as already been defined to avoid overriding it
                 if agb.findActivity(key, db_name=USER_DB, single=False):
                     warn(f"Activity with name '{key}' defined multiple times. "
@@ -458,21 +476,26 @@ class LCAProblemConfigurator:
                     key = _get_unique_activity_name(key)
 
                 if KEY_NAME in value:
-                    # It is a background process
+                    # It is a background activity
                     name = value[KEY_NAME]
                     loc = value.get(KEY_LOCATION, None)
                     unit = value.get(KEY_UNIT, None)
                     categories = value.get(KEY_CATEGORIES, None)
                     exchange = _parse_exchange(value)
                     custom_attributes = value.get(KEY_CUSTOM_ATTR, [])
+                    update_exchanges = value.get(KEY_UPDATE_ACT, [])
                     try:  # Search activity in ecoinvent db
-                        sub_process = self._get_ecoinvent_activity(name, loc, unit, key)
+                        sub_act = self._get_ecoinvent_activity(name, loc, unit, key)
                         # Add custom attributes
                         for attr in custom_attributes:
                             attr_dict = {attr.get(KEY_ATTR_NAME): attr.get(KEY_ATTR_VALUE)}
-                            sub_process.updateMeta(**attr_dict)
+                            sub_act.updateMeta(**attr_dict)
+                        # Update exchanges if defined in the configuration file
+                        if update_exchanges:
+                            self._update_exchanges(sub_act, update_exchanges)
+
                     except:  # Could not find activity in ecoinvent. Search activity in biosphere.
-                        sub_process = agb.findBioAct(
+                        sub_act = agb.findBioAct(
                             name=name,
                             loc=loc,
                             categories=categories,
@@ -480,62 +503,147 @@ class LCAProblemConfigurator:
                         )
 
                     if group_switch_param:
-                        # Parent group is a switch process
-                        switch_value = key.replace('_', '')  # trick since lca algebraic does not handles correctly switch values with underscores
-                        group.addExchanges({sub_process: exchange * group_switch_param.symbol(switch_value)})
+                        # Parent group is a switch activity
+                        switch_value = key.replace('_',
+                                                   '')  # trick since lca algebraic does not handles correctly switch values with underscores
+                        group.addExchanges({sub_act: exchange * group_switch_param.symbol(switch_value)})
                     else:
-                        # Parent group is a regular process
-                        group.addExchanges({sub_process: exchange})
+                        # Parent group is a regular activity
+                        group.addExchanges({sub_act: exchange})
                 else:
                     # It is a group
                     exchange = _parse_exchange(value)  # exchange with parent group
-                    unit = value.get(KEY_UNIT, None)  # process unit
+                    unit = value.get(KEY_UNIT, None)  # activity unit
                     is_switch = value.get(KEY_SWITCH, None)
                     switch_param = None
                     if not is_switch:
-                        # It is a regular process
-                        sub_process = agb.newActivity(
-                            db_name=USER_DB, 
-                            name=key, 
+                        # It is a regular activity
+                        sub_act = agb.newActivity(
+                            db_name=USER_DB,
+                            name=key,
                             unit=unit
                         )
                         # Add custom attributes
                         for attr in value.get(KEY_CUSTOM_ATTR, []):
                             attr_dict = {attr.get(KEY_ATTR_NAME): attr.get(KEY_ATTR_VALUE)}
-                            sub_process.updateMeta(**attr_dict)
+                            sub_act.updateMeta(**attr_dict)
                     else:
-                        # It is a switch process
+                        # It is a switch activity
                         switch_values = value.copy()
                         switch_values.pop(KEY_EXCHANGE, None)
                         switch_values.pop(KEY_SWITCH)
-                        switch_values = list(switch_values.keys())  # [val + '_enum' for val in list(switch_values.keys())]
-                        switch_values = [val.replace('_', '') for val in switch_values]  # trick since lca algebraic does not handles correctly switch values with underscores
+                        switch_values = list(
+                            switch_values.keys())  # [val + '_enum' for val in list(switch_values.keys())]
+                        switch_values = [val.replace('_', '') for val in
+                                         switch_values]  # trick since lca algebraic does not handles correctly switch values with underscores
                         switch_param = agb.newEnumParam(
-                            name=key+'_switch_param',  # name of switch parameter
+                            name=key + '_switch_param',  # name of switch parameter
                             values=switch_values,  # possible values
                             default=switch_values[0],  # default value
                             dbname=USER_DB  # parameter defined in foreground database
                         )
-                        sub_process = agb.newSwitchAct(
-                            dbname=USER_DB, 
-                            name=key, 
+                        sub_act = agb.newSwitchAct(
+                            dbname=USER_DB,
+                            name=key,
                             paramDef=switch_param,
                             acts_dict={}
                         )
                         # Add custom attributes
                         for attr in value.get(KEY_CUSTOM_ATTR, []):
                             attr_dict = {attr.get(KEY_ATTR_NAME): attr.get(KEY_ATTR_VALUE)}
-                            sub_process.updateMeta(**attr_dict)
+                            sub_act.updateMeta(**attr_dict)
 
-                    # Check if parent group is a switch process or a regular process
+                    # Check if parent group is a switch activity or a regular activity
                     if group_switch_param:
-                        # Parent group is a switch process
-                        switch_value = key.replace('_', '')  # trick since lca algebraic does not handles correctly switch values with underscores
-                        group.addExchanges({sub_process: exchange * group_switch_param.symbol(switch_value)})
+                        # Parent group is a switch activity
+                        switch_value = key.replace('_',
+                                                   '')  # trick since lca algebraic does not handles correctly switch values with underscores
+                        group.addExchanges({sub_act: exchange * group_switch_param.symbol(switch_value)})
                     else:
-                        # Parent group is a regular process
-                        group.addExchanges({sub_process: exchange})
-                    self._parse_problem_table(sub_process, value, switch_param)
+                        # Parent group is a regular activity
+                        group.addExchanges({sub_act: exchange})
+                    self._parse_problem_table(sub_act, value, switch_param)
+
+    def _update_exchanges(self, act, update_exchanges):
+        """
+        Updates exchanges of an activity with new values.
+        :param act:
+        :param update_exchanges:
+        :return:
+        """
+        activities_to_update = {}  # dict of activity: original database of activity
+        if not self.premise_scenarios:
+            activities_to_update[act] = self.source_ei_name
+
+        else:  # premise: there are two intermediate activities to skip before reaching background
+            for exc in act.technosphere():  # scenario selection level
+                if _isOutputExch(exc):  # skip production exchanges
+                    continue
+                for subexc in exc.input.technosphere():  # year selection level
+                    if _isOutputExch(subexc):  # skip production exchanges
+                        continue
+                    background_act = bw.get_activity(subexc.input.key)
+                    # TODO: this is a very ugly way of finding the ecoinvent-premise database name.
+                    #  Should be done in _get_ecoinvent_activity method with a dict of act: db_name
+                    db_name = [act[1].as_dict()['database'] for idx, act in
+                               enumerate(background_act.listExchanges()) if
+                               KEY_ECOINVENT in act[1].as_dict()['database']][0]
+
+                    activities_to_update[background_act] = db_name
+
+        # Update exchanges of the activity (or of the multiple activities if premise is used)
+        for act, db_name in activities_to_update.items():
+            update_dict = {}
+            for update in update_exchanges:
+                input_activity = update.get(KEY_INPUT_ACT)
+                new_value = update.get(KEY_NEW_VAL)
+                if isinstance(new_value, dict):
+                    if KEY_NAME in new_value:
+                        # It is a background activity
+                        amount = new_value.get(KEY_EXCHANGE, 1.0)
+                        new_input = agb.findActivity(
+                                name=new_value.get(KEY_NAME),
+                                loc=new_value.get(KEY_LOCATION, None),
+                                unit=new_value.get(KEY_UNIT, None),
+                                db_name=db_name
+                            )
+                    else:
+                        # It is a group
+                        if len(new_value) > 1:
+                            print('Error: only one activity can be defined in a group when updating exchanges')
+                        key, value = next(iter(new_value.items()))
+                        unit = value.get(KEY_UNIT, None)
+                        is_switch = value.get(KEY_SWITCH, None)
+                        amount = value.get(KEY_EXCHANGE, 1.0)
+                        if is_switch:
+                            print('Error: switch option not available with update exchange option')
+                        # check if group already defined by previous update (because of multiple premise databases)
+                        new_input = agb.findActivity(
+                            db_name=USER_DB,
+                            name=key,
+                            single=False
+                        )
+                        if not new_input:  # activity not previously defined
+                            # TODO: reinforce this check with tag relating to update-specific activity.
+                            new_input = agb.newActivity(
+                                db_name=USER_DB,
+                                name=key,
+                                unit=unit
+                            )
+                            self._parse_problem_table(new_input, value)  # continue to traverse tree of group
+
+                    # Deal with special symbol *old_amount* that references the previous amount of this exchange
+                    if amount == '*old_amount*':  # TODO : implement this feature when using wildcard * to select multiple input_activites, e.g. to get sum
+                        amount = agb.old_amount
+                    new_value = dict(
+                        amount=amount,
+                        input=new_input
+                    )
+
+                update_dict[input_activity] = new_value
+
+            # Update exchanges of activity with new values
+            act.updateExchanges(update_dict)
 
 
 class _IDictSerializer(ABC):

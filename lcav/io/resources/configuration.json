@@ -85,6 +85,25 @@
           "required": ["attribute", "value"]
         }
       },
+    "update": {
+        "$comment": "Update existing exchanges with new values. New value can be either an amount, an new activity name, or a dictionary of amount and activity name.",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "input_activity": {
+              "type": "string"
+            },
+            "new_value": {
+              "type": [
+                  "string",
+                  "object"
+                ]
+            }
+          },
+          "required": ["input_activity", "new_value"]
+        }
+      },
     "model": {
       "$comment": "Definition of an LCA model",
       "type": "object",

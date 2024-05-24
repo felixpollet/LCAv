@@ -185,6 +185,7 @@ def _getAmountOrFormula(ex):
         return format_number(ex['amount'])
     return ""
 
+
 def safe_delete_brightway_project(projectname: str) -> None:
     try:
         bw2data.projects.delete_project(
