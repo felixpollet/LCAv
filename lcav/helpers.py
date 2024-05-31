@@ -1,9 +1,9 @@
 import lca_algebraic as agb
 import pandas as pd
 from sympy.parsing.sympy_parser import parse_expr
-from sympy import Float
+from sympy.printing.str import StrPrinter
+from sympy import Float, factor
 import bw2data
-from typing import List, Union
 
 USER_DB = 'Foreground DB'
 DEFAULT_PROJECT = 'lcav_default_project'
@@ -11,11 +11,10 @@ DEFAULT_PROJECT = 'lcav_default_project'
 
 def list_processes(model, foreground_only: bool = True, custom_attribute: str = None) -> pd.DataFrame:
     """
-    Traverses the tree of sub-activities (sub-processes) until background database is reached.
+    Traverses the tree of sub-activities (sub-processes) until the background database is reached.
     """
 
-    def _recursive_activities(act,
-                              activities, units, locations, parents, exchanges, levels, dbs, custom_attributes,
+    def _recursive_activities(act, activities, units, locations, parents, amounts, levels, dbs, custom_attributes,
                               parent: str = "", exc: dict = None, level: int = 0):
 
         if exc is None:
@@ -23,9 +22,9 @@ def list_processes(model, foreground_only: bool = True, custom_attribute: str = 
         name = act.as_dict()['name']
         unit = act.as_dict()['unit']
         loc = act.as_dict().get('location', "")
-        if loc not in ['GLO', '']:
+        if loc not in ['GLO', ''] and f'[{loc}]' not in name:
             name += f' [{loc}]'
-        exchange = _getAmountOrFormula(exc)
+        amount = _getAmountOrFormula(exc)
         db = act.as_dict()['database']
         custom_attr = act.as_dict().get(custom_attribute, "")  # get any additional attribute asked by the user
 
@@ -33,11 +32,20 @@ def list_processes(model, foreground_only: bool = True, custom_attribute: str = 
         if foreground_only and db != USER_DB:
             return
 
+        if name in activities:  # Multiple parents for the same activity.
+            # TODO: implement better check than just the name and database, e.g. by adding the act object in the lists (but not in the final df)
+            # Populate lists accordingly and stop recursion since the activity has already been processed
+            idx = activities.index(name)
+            if dbs[idx] == db:
+                parents[idx].append(parent)
+                amounts[idx].append(amount)
+                return
+
         activities.append(name)
         units.append(unit)
         locations.append(loc)
-        parents.append(parent)
-        exchanges.append(exchange)
+        parents.append([parent])
+        amounts.append([amount])
         levels.append(level)
         dbs.append(db)
         custom_attributes.append(custom_attr)
@@ -47,11 +55,12 @@ def list_processes(model, foreground_only: bool = True, custom_attribute: str = 
             return
 
         for exc in act.exchanges():
-            if exc.input != act:
-                _recursive_activities(exc.input, activities, units, locations, parents, exchanges, levels, dbs, custom_attributes,
-                                      parent=name,
-                                      exc=exc,
-                                      level=level + 1)
+            if agb.base_utils._isOutputExch(exc):  # skip production exchange to only go down the tree
+                continue
+            _recursive_activities(exc.input, activities, units, locations, parents, amounts, levels, dbs, custom_attributes,
+                                  parent=name,
+                                  exc=exc,
+                                  level=level + 1)
         return
 
     # Initialize lists
@@ -59,20 +68,20 @@ def list_processes(model, foreground_only: bool = True, custom_attribute: str = 
     units = []
     locations = []
     parents = []
-    exchanges = []
+    amounts = []
     levels = []
     dbs = []
     custom_attributes = []
 
     # Recursively populate lists
-    _recursive_activities(model, activities, units, locations, parents, exchanges, levels, dbs, custom_attributes)
+    _recursive_activities(model, activities, units, locations, parents, amounts, levels, dbs, custom_attributes)
     data = {'activity': activities,
             'unit': units,
             'location': locations,
             'level': levels,
             'database': dbs,
-            'parent': parents,
-            'exchange': exchanges,
+            'parents': parents,
+            'amounts': amounts,
             }
     if custom_attribute:
         data[custom_attribute] = custom_attributes
@@ -172,15 +181,16 @@ def format_number(num, precision=2):
         return sci_num
 
 
+class CustomStrPrinter(StrPrinter):
+    def _print_Float(self, expr):
+        return '{:.2e}'.format(expr)
+
+
 def _getAmountOrFormula(ex):
     """ Return either a fixed float value or an expression for the amount of this exchange"""
     if 'formula' in ex:
-        expr = parse_expr(ex['formula'])
-        try:
-            float(expr)
-            return format_number(float(expr))
-        except TypeError:
-            return expr
+        expr = parse_expr(ex['formula'], evaluate=False)
+        return CustomStrPrinter().doprint(factor(expr))
     elif 'amount' in ex:
         return format_number(ex['amount'])
     return ""
