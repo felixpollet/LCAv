@@ -1,32 +1,41 @@
 [tool.poetry]
 name = "lcav"
 version = "0.0.0"
-description = "LCAv is a Python toolbox for performing rapid, in-loop life cycle assessments of air transport systems"
+description = "Python library to build parametric LCA models from a configuration file. "
 authors = [
     "Félix POLLET <felix.pollet@isae-supaero.fr>",
     "Scott DELBECQ <scott.delbecq@isae-supaero.fr>",
     "Thomas PLANES <thomas.planes@isae-supaero.fr>"
 ]
-keywords = ["aviation", "lca"]
+keywords = ["life cycle assessment", "LCA", "parametric model", "prospective LCA"]
 license = "GPL-3.0-only"
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-lca-algebraic = "1.1"
+
+# Core LCA libraries
+lca-algebraic = {git = "https://github.com/felixpollet/lca_algebraic.git"}  #"1.1"
 premise = "2.0.2"
-bw2io = "0.8.12"
-bw2data = "3.6.6"
-bw2calc = "1.8.2"
-ipywidgets = "^8.1.1"
+#bw2io = "0.8.12"
+#bw2data = "3.6.6"
+#bw2calc = "1.8.2"
+
+# Data visualization
+matplotlib = "^3.7"
 plotly = "^5.0.0"
-ipysheet = "^0.7.0"
-"ruamel.yaml" = "^0.18.5"
-matplotlib = "^3.6.2"
-jupyterlab = "^3.3.0"
-ensure = "^1.0.0"
 pyvis = "^0.3.0"
 
+# Graphical User Interface
+jupyterlab = "^3.3.0"
+ipywidgets = "^8.0.6"
+ipysheet = ">=0.5.0, <1"
+ipydatagrid = "^1.1.14"
+ipytree = "^0.2.2"
+
+# Other standard libraries
+"ruamel.yaml" = "^0.18.5"
+ensure = "^1.0.0"
 tbb = "2021.10.0"  # For MacOS
 intel-openmp = "2023.2.0"  # For MacOS
 
