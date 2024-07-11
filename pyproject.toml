@@ -36,8 +36,8 @@ ipytree = "^0.2.2"
 # Other standard libraries
 "ruamel.yaml" = "^0.18.5"
 ensure = "^1.0.0"
-tbb = "2021.10.0"  # For MacOS
-intel-openmp = "2023.2.0"  # For MacOS
+#tbb = "2021.10.0"  # For MacOS
+#intel-openmp = "2023.2.0"  # For MacOS
 
 [build-system]
 requires = ["poetry-core"]
