@@ -362,7 +362,7 @@ model:
                         - 'lower stratosphere + upper troposphere'
 
                 others_combustion:
-                    name: '#others_combustion_non_kero'
+                    name: '#others_combustion_non_kero'  # reference previously defined activity
             
             production:
                 custom_attributes:
