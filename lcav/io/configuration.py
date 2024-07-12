@@ -202,6 +202,8 @@ class LCAProblemConfigurator:
         # Get LCIA methods if declared
         methods = [eval(m) for m in self._serializer.data.get(KEY_METHODS, [])]
 
+        # TODO: also return list of parameters?
+
         return project_name, model, methods
 
     def load(self, conf_file):
@@ -274,7 +276,7 @@ class LCAProblemConfigurator:
         ei_model = self.ei_model = ei_dict[KEY_MODEL]
         self.source_ei_name = f"ecoinvent-{ei_version}-{ei_model}"  # store for future use
         premise_dict = self._serializer.data.get(KEY_PREMISE, dict())
-        self.premise_scenarios = premise_dict.get(KEY_SCENARIOS)
+        self.premise_scenarios = premise_dict.get(KEY_SCENARIOS, [])
 
         if self.source_ei_name in bw.databases and not reset:  # TODO: enable to install only additional premise dbs not declared previously
             print("Initial setup of EcoInvent already done, skipping. "
