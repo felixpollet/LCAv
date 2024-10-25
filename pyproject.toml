@@ -15,7 +15,7 @@ readme = "README.md"
 python = ">=3.10,<3.11"
 
 # Core LCA libraries
-lca-algebraic = {git = "https://github.com/felixpollet/lca_algebraic.git"}  #"1.1"
+lca-algebraic = {git = "https://github.com/oie-mines-paristech/lca_algebraic.git"}
 premise = "2.0.2"
 #bw2io = "0.8.12"
 #bw2data = "3.6.6"
