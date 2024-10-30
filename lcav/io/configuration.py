@@ -2,11 +2,12 @@ import json
 import os
 from importlib.resources import open_text
 from abc import ABC, abstractmethod
+import shutil
 
 import bw2io
+from bw2io.importers import ExcelLCIAImporter, CSVLCIAImporter
 from jsonschema import validate
 import lca_algebraic as agb
-from lca_algebraic.log import warn
 import brightway2 as bw
 from sympy import sympify
 import logging
@@ -26,6 +27,7 @@ from collections import defaultdict
 from lcav.helpers import safe_delete_brightway_project
 
 BIOSPHERE3_DB_NAME = "biosphere3"
+USER_BIOSPHERE_DB_NAME = "biosphere_user"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +40,6 @@ KEY_MODEL = 'model'
 KEY_NORMALIZED_MODEL = 'normalized model'
 KEY_EXCHANGE = 'amount'
 KEY_SWITCH = 'is_switch'
-# KEY_FUNCTIONAL_VALUE = 'functional_unit_scaler'
 KEY_NAME = 'name'
 KEY_LOCATION = 'loc'
 KEY_CATEGORIES = 'categories'
@@ -49,6 +50,7 @@ KEY_ATTR_VALUE = 'value'
 EXCHANGE_DEFAULT_VALUE = 1.0  # default value for the exchange between two activities
 SWITCH_DEFAULT_VALUE = False  # default foreground activity type (True: it is a switch activity; False: it is a regular activity)
 KEY_METHODS = 'methods'
+KEY_CUSTOM_METHODS = 'custom_methods'
 KEY_PREMISE = 'premise'
 KEY_SCENARIOS = 'scenarios'
 KEY_YEAR = 'year'
@@ -59,6 +61,10 @@ KEY_INPUT_ACT = 'input_activity'
 KEY_NEW_VAL = 'new_value'
 KEY_DELETE = 'delete'
 KEY_ADD = 'add'
+KEY_FILEPATH = 'filepath'
+KEY_SOURCE_METHOD = 'source_method'
+DEFAULT_DESC_LCIA = 'custom LCIA method'
+KEY_RESET = 'reset_project'
 
 
 def _get_unique_activity_name(key):
@@ -70,6 +76,17 @@ def _get_unique_activity_name(key):
         i += 1
     new_key = f'{key}_{i}'
     return new_key
+
+
+def is_comma_separated(file_path):
+    """
+    Checks if the csv file is well formated, i.e. it contains commas and not semicolons.
+    :param file_path:
+    :return:
+    """
+    with open(file_path, 'r') as file:
+        first_line = file.readline()
+        return ',' in first_line
 
 
 def _parse_exchange(table: dict, act: ActivityExtended = None):
@@ -173,6 +190,95 @@ def newMultiSwitchAct(dbname, name, paramDefList: Union[List[ParamDef], ParamDef
     return res
 
 
+def create_custom_lcia_method(name: str, filepath: str, unit: str = None, source_method: str = None):
+    """
+    Creates a new LCIA method from an Excel file.
+
+    :param name: name of the new method
+    :param filepath: path to the Excel file
+    :param unit: unit of the method
+    :param source_method: name of the source method to duplicate and modify from. If not provided, the method is created from scratch.
+    """
+
+    if name in bw.methods and bw.methods.get(name).get('description') != DEFAULT_DESC_LCIA:
+        _LOGGER.warning(f"Method {name} already exists as default LCIA method. "
+             f"If you wish to duplicate and modify, use `{KEY_SOURCE_METHOD}` option.")
+        return
+
+    print("Creating custom LCIA method ", name)
+
+    file_name, file_extension = os.path.splitext(filepath)
+    if file_extension not in ['.csv', '.xlsx']:
+        raise ValueError("File extension not supported. Please provide a CSV or Excel file.")
+    if file_extension == '.csv' and not is_comma_separated(filepath):
+        raise ValueError("CSV file must be comma-separated. Please convert the file to a CSV with commas.")
+
+    if source_method:
+        source_method_unit = bw.Method(source_method).metadata.get('unit')
+        if unit != source_method_unit:
+            _LOGGER.warning(f"Unit `{unit}` provided for method {name} is different from source method. "
+                            f"Overriding with source method unit `{source_method_unit}`.")
+        unit = source_method_unit if unit != source_method_unit or not unit else unit
+
+    Importer = CSVLCIAImporter if file_extension == '.csv' else ExcelLCIAImporter
+    newLCIA = Importer(filepath, name, DEFAULT_DESC_LCIA, unit)
+
+    # Link with existing biosphere flows
+    newLCIA.apply_strategies(verbose=False)
+
+    # If remaining flows: create biosphere database to define new flows
+    if newLCIA.statistics(print_stats=False)[2] != 0:
+        # User biosphere to store new flows (e.g. contrails)
+        user_biosphere = bw.Database(USER_BIOSPHERE_DB_NAME)
+        user_biosphere.write(dict())
+
+        # Link with existing flows in user biosphere
+        super(ExcelLCIAImporter, newLCIA).__init__(
+            filepath,
+            biosphere=USER_BIOSPHERE_DB_NAME
+        )  # Waiting for bw2io fix on that (issue #249)
+        newLCIA.apply_strategies(verbose=False)
+
+        # Add missing flows and link
+        super(ExcelLCIAImporter, newLCIA).__init__(
+            filepath,
+            biosphere=USER_BIOSPHERE_DB_NAME
+        )  # for some reason instance has to be reset, probably to reinit strategy functions with latest data available.
+        newLCIA.add_missing_cfs()  # add missing flows to dedicated biosphere db
+        newLCIA.apply_strategies(verbose=False)
+
+    # Add additional data from source method
+    if source_method:
+        source_cfs = bw.Method(source_method).load()
+        for method in newLCIA.data:
+            new_cfs_flows = [cf["input"] for cf in method["exchanges"] if "input" in cf]
+            for flow, cf_value in source_cfs:
+                if flow not in new_cfs_flows:
+                    flow_data = bw.Database(flow[0]).get(flow[1])
+                    method["exchanges"].append(
+                        {
+                            "name": flow_data.get("name"),
+                            "categories": flow_data.get("categories"),
+                            "amount": cf_value,
+                            "unit": flow_data.get("unit"),
+                            "type": flow_data.get("type"),
+                            "code": flow_data.get("code"),
+                            "input": flow,
+                        }
+                    )
+
+    # Write new LCIA method
+    newLCIA.statistics()
+    newLCIA.write_methods(overwrite=True)
+
+    # Write excel file of new method updated with data from source method
+    if source_method:
+        fp_source = bw2io.export.excel.write_lcia_matching(newLCIA, file_name)
+        fp_destination = os.path.abspath(file_name) + '_updated' + '.xlsx'
+        shutil.move(fp_source, fp_destination)
+        print(u"Wrote matching file to:\n{}".format(fp_destination))
+
+
 class LCAProblemConfigurator:
     """
     class for configuring an LCA_algebraic problem from a configuration file
@@ -189,20 +295,26 @@ class LCAProblemConfigurator:
         if conf_file_path:
             self.load(conf_file_path)
 
-    def generate(self, reset: bool = False):
+    def generate(self):
         """
         Creates the LCA activities and parameters as defined in the configuration file.
         Also gets the LCIA methods defined in the conf file.
         :return: model: the top-level activity corresponding to the functional unit
         :return: methods: the LCIA methods
         """
+
+        # Reset project for fresh start?
+        reset = self._serializer.data.get(KEY_RESET, False)
+
         # Create model from configuration file
         project_name, model = self._build_model(reset=reset)
 
         # Get LCIA methods if declared
         methods = [eval(m) for m in self._serializer.data.get(KEY_METHODS, [])]
+        custom_methods = [eval(m.get(KEY_NAME)) for m in self._serializer.data.get(KEY_CUSTOM_METHODS, [])]
+        methods.extend(custom_methods)
 
-        # TODO: also return list of parameters?
+        # also return list of parameters?
 
         return project_name, model, methods
 
@@ -239,7 +351,7 @@ class LCAProblemConfigurator:
         if "biosphere3" not in bw.databases:
             raise ValueError(
                 f"Biosphere database must be named 'biosphere3' for premise, or is missing. "
-                f"Consider resetting the project with 'safe_delete_brightway_project(projectname)' helper function."
+                f"Consider resetting the project with 'reset_project=True' in configuration file."
             )
         pm.clear_cache()  # fresh start
         ndb = pm.NewDatabase(
@@ -248,7 +360,7 @@ class LCAProblemConfigurator:
             source_db=self.source_ei_name,
             source_version=self.ei_version,
             system_model=self.ei_model,
-            key='tUePmX_S5B8ieZkkM7WUU2CnO8SmShwmAeWK9x2rTFo=',  # TODO: set as environment variable
+            key='tUePmX_S5B8ieZkkM7WUU2CnO8SmShwmAeWK9x2rTFo=',
             quiet=True
         )
         premise_dict = self._serializer.data.get(KEY_PREMISE, dict())
@@ -278,9 +390,9 @@ class LCAProblemConfigurator:
         premise_dict = self._serializer.data.get(KEY_PREMISE, dict())
         self.premise_scenarios = premise_dict.get(KEY_SCENARIOS, [])
 
-        if self.source_ei_name in bw.databases and not reset:  # TODO: enable to install only additional premise dbs not declared previously
+        if self.source_ei_name in bw.databases and not reset:
             print("Initial setup of EcoInvent already done, skipping. "
-                  "To reset the project use option `reset=True`.")
+                  "To reset the project use option `reset_project=True`.")
 
         else:  ### Import Ecoinvent DB
             # User must create a file named .env, that he will not share /commit, and contains the following :
@@ -313,6 +425,16 @@ class LCAProblemConfigurator:
             if db_name not in bw.databases:
                 new_premise_scenarios.append(scenario)
         self._setup_premise(new_premise_scenarios)
+
+        ### Create new LCIA methods provided by user
+        custom_methods = self._serializer.data.get(KEY_CUSTOM_METHODS, [])
+        agb.resetDb(USER_BIOSPHERE_DB_NAME, foreground=False)  # create biosphere db dedicated to new flows (e.g. contrails)
+        for method in custom_methods:
+            name = eval(method.get(KEY_NAME))
+            filepath = method.get(KEY_FILEPATH)
+            unit = method.get(KEY_UNIT)
+            source_method = eval(method.get(KEY_SOURCE_METHOD)) if method.get(KEY_SOURCE_METHOD) else None
+            create_custom_lcia_method(name, filepath, unit, source_method)
 
         ### Set the foreground database
         agb.resetDb(USER_DB)  # cleanup the whole foreground model to avoid errors
@@ -357,6 +479,35 @@ class LCAProblemConfigurator:
         print("Done.")
 
         return project_name, model
+
+    def _get_bio_activity(self, name, loc, categories, unit):
+        """
+        Searches for a biosphere activity in the default biosphere database.
+        If not found, searches in the user biosphere database, which consists of unconventional biosphere flows defined
+        by new LCIA methods (see newLCIAMethod()).
+        :param name: name of the biosphere flow to search
+        :param loc: geographical location
+        :param categories: list of categories, e.g. ('air', 'lower stratosphere + upper troposphere')
+        :param unit: unit of the biosphere flow (e.g. 'kilogram')
+        :return:
+        """
+        sub_act = agb.findActivity(
+            name=name,
+            loc=loc,
+            categories=categories,
+            unit=unit,
+            db_name=BIOSPHERE3_DB_NAME,
+            single=False
+        )
+        if not sub_act:
+            sub_act = agb.findActivity(
+                name=name,
+                loc=loc,
+                categories=categories,
+                unit=unit,
+                db_name=USER_BIOSPHERE_DB_NAME,
+            )
+        return sub_act
 
     def _get_tech_activity(self, name, loc, unit, code: str = None, copy_act: bool = True):
         """
@@ -548,7 +699,13 @@ class LCAProblemConfigurator:
             update_exchanges = table.get(KEY_UPDATE_ACT, [])
             delete_exchanges = table.get(KEY_DELETE, [])
             add_exchanges = table.get(KEY_ADD, [])
-            try:
+
+            # Biosphere flow
+            if categories:
+                sub_act = self._get_bio_activity(name, loc, categories, unit)
+
+            # Technosphere activity
+            else:
                 sub_act = self._get_tech_activity(name, loc, unit) if not self.premise_scenarios else \
                     self._create_proxy_activity_premise(name, loc, unit, code=name)
                 # Add custom attributes
@@ -567,22 +724,15 @@ class LCAProblemConfigurator:
                 if delete_exchanges:
                     act_meta = {KEY_NAME: name, KEY_LOCATION: loc, KEY_UNIT: unit}
                     self._delete_exchanges(sub_act, act_meta, delete_exchanges)
-            except:  # Search activity in biosphere3 db
-                sub_act = agb.findBioAct(
-                    name=name,
-                    loc=loc,
-                    categories=categories,
-                    unit=unit
-                )
             group.addExchanges({sub_act: exchange})
 
         for key, value in table.items():
             if isinstance(value, dict):  # value defines a sub activity
                 # Check if an activity with this key as already been defined to avoid overriding it
                 if agb.findActivity(key, db_name=USER_DB, single=False):
-                    warn(f"Activity with name '{key}' defined multiple times. "
+                    _LOGGER.warning(f"Activity with name '{key}' defined multiple times. "
                          f"Adding suffix increments to labels. "
-                         f"To refer to pre-existing activity, use name: '#activity_name'.")
+                         f"To refer a pre-existing activity, use `name: '#activity_name'`.")
                     key = _get_unique_activity_name(key)
 
                 name = value.get(KEY_NAME, '')
@@ -595,7 +745,13 @@ class LCAProblemConfigurator:
                     update_exchanges = value.get(KEY_UPDATE_ACT, [])
                     delete_exchanges = value.get(KEY_DELETE, [])
                     add_exchanges = value.get(KEY_ADD, [])
-                    try:  # Search activity in ecoinvent db
+
+                    # Biosphere flow
+                    if categories:
+                        sub_act = self._get_bio_activity(name, loc, categories, unit)
+
+                    # Technosphere activity
+                    else:
                         sub_act = self._get_tech_activity(name, loc, unit, key) if not self.premise_scenarios else \
                             self._create_proxy_activity_premise(name, loc, unit, code=key)
                         # Add custom attributes
@@ -614,13 +770,6 @@ class LCAProblemConfigurator:
                         if delete_exchanges:
                             act_meta = {KEY_NAME: name, KEY_LOCATION: loc, KEY_UNIT: unit}
                             self._delete_exchanges(sub_act, act_meta, delete_exchanges)
-                    except:  # Could not find activity in ecoinvent. Search activity in biosphere.
-                        sub_act = agb.findBioAct(
-                            name=name,
-                            loc=loc,
-                            categories=categories,
-                            unit=unit
-                        )
 
                     if group_switch_param:
                         # Parent group is a switch activity
@@ -826,13 +975,16 @@ class LCAProblemConfigurator:
         categories = new_value.get(KEY_CATEGORIES)
 
         if name:  # background activity or previously defined foreground activity
-            try:
+
+            if categories: # Biosphere flow
+                return self._get_bio_activity(name, loc, categories, unit)
+
+            else: # Technosphere activity
                 if not self.premise_scenarios or name.startswith('#'):
                     return self._get_tech_activity(name, loc, unit, copy_act=False) # copy act would be a bit overkill here
                 else:
                     return self._get_tech_activity_premise(name, loc, unit, copy_act=False)
-            except:
-                return agb.findBioAct(name=name, loc=loc, categories=categories, unit=unit)
+
         else:  # new foreground activity
             new_act = new_value.copy()
             if KEY_EXCHANGE in new_act:

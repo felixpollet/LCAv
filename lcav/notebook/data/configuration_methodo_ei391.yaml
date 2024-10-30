@@ -1,5 +1,7 @@
 project: example_methodology_ei391
 
+reset_projet: False
+
 ecoinvent:
     version: 3.9.1
     model: cutoff
@@ -11,27 +13,27 @@ ecoinvent:
 
 premise:
     scenarios:
-        - model: remind
-          pathway: SSP2-Base
+        - model: "remind"
+          pathway: "SSP2-Base"
           year: 2020
         - model: "remind"
           pathway: "SSP2-Base"
           year: 2025
-        - model: "remind"
-          pathway: "SSP2-Base"
-          year: 2030
-        - model: "remind"
-          pathway: "SSP2-Base"
-          year: 2035
-        - model: "remind"
-          pathway: "SSP2-Base"
-          year: 2040
-        - model: "remind"
-          pathway: "SSP2-Base"
-          year: 2045
-        - model: remind
-          pathway: SSP2-Base
-          year: 2050
+        #- model: "remind"
+        #  pathway: "SSP2-Base"
+        #  year: 2030
+        #- model: "remind"
+        #  pathway: "SSP2-Base"
+        #  year: 2035
+        #- model: "remind"
+        #  pathway: "SSP2-Base"
+        #  year: 2040
+        #- model: "remind"
+        #  pathway: "SSP2-Base"
+        #  year: 2045
+        #- model: "remind"
+        #  pathway: "SSP2-Base"
+        #  year: 2050
     update: all  # all sectors
         # Or a list of individual sectors to be updated
         # - electricity
@@ -66,7 +68,16 @@ model:
         short_range:
             name: 'aircraft production, passenger aircraft, short haul'
             amount: aircraft_production_short_range
-        
+            
+    nonCO2:
+        contrails:
+            amount: contrails_kilometers
+            name: 'contrail'
+            unit: 'kilometer'
+            categories:
+                - 'air'
+                - 'lower stratosphere + upper troposphere'
+
     fuel:
         unit: MJ
         
@@ -434,10 +445,6 @@ model:
 
 
 methods:  # tip: you can search for methods with lca_algebraic function agb.findMethods()
-    #- "('EF v3.1', 'acidification', 'accumulated exceedance (AE)')"
-    #- "('EF v3.1', 'climate change', 'global warming potential (GWP100)')"
-    #- "('EF v3.1', 'water use', 'user deprivation potential (deprivation-weighted water consumption)')"
-    #- "('EF v3.1', 'land use', 'soil quality index')"
     - "('ReCiPe 2016 v1.03, midpoint (H)', 'acidification: terrestrial', 'terrestrial acidification potential (TAP)')"
     - "('ReCiPe 2016 v1.03, midpoint (H)', 'climate change',  'global warming potential (GWP100)')"
     - "('ReCiPe 2016 v1.03, midpoint (H)', 'ecotoxicity: freshwater', 'freshwater ecotoxicity potential (FETP)')"
@@ -459,5 +466,15 @@ methods:  # tip: you can search for methods with lca_algebraic function agb.find
     - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: ecosystem quality', 'ecosystem quality')"
     - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: human health', 'human health')"
     - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: natural resources', 'natural resources')"
-
     
+
+custom_methods:
+    - name: "('Custom methods', 'climate change', 'GWP100 (contrails only)')"
+      filepath: './data/lcia_contrails.csv'  # This is where you define the CFs. Any flow not already existing (e.g. contrails) is automatically added.
+      unit: 'kg CO2-Eq'
+      source_method: "('ReCiPe 2016 v1.03, midpoint (H)', 'climate change',  'global warming potential (GWP100)')"
+      # if provided, the source method is duplicated and updated with the cfs provided in the filepath (cf modification or addition).
+      # otherwise, the lcia method is built from scratch.
+      
+      
+      

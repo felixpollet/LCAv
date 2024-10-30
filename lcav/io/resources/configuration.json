@@ -185,6 +185,9 @@
     "project": {
       "type": "string"
     },
+    "reset_project": {
+      "type": "boolean"
+    },
     "ecoinvent": {
       "$comment": "Declaration of the background database ecoinvent",
       "type": "object",
@@ -231,6 +234,28 @@
         "null"
       ],
       "default": null
+    },
+    "custom_methods": {
+        "$comment": "List of new LCIA methods defined by the user",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "filepath": {
+              "type": "string"
+            },
+            "unit": {
+              "type": "string"
+            },
+            "source_method": {
+              "type": "string"
+            }
+          },
+          "required": ["name", "filepath"]
+        }
     },
     "normalisation": {
       "type": "boolean",
