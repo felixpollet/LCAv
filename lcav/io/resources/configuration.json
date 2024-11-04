@@ -186,7 +186,8 @@
       "type": "string"
     },
     "reset_project": {
-      "type": "boolean"
+      "type": "boolean",
+      "default": false
     },
     "ecoinvent": {
       "$comment": "Declaration of the background database ecoinvent",

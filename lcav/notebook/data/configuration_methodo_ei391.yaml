@@ -1,6 +1,6 @@
 project: example_methodology_ei391
 
-reset_projet: False
+reset_project: False
 
 ecoinvent:
     version: 3.9.1
