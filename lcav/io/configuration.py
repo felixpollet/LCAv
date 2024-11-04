@@ -688,8 +688,8 @@ class LCAProblemConfigurator:
         :param table:
         """
 
+        ### CASE 1: the table contains a single activity
         if KEY_NAME in table:
-            # The defined table is only a background activity
             name = table[KEY_NAME]
             loc = table.get(KEY_LOCATION, None)
             unit = table.get(KEY_UNIT, None)
@@ -703,6 +703,16 @@ class LCAProblemConfigurator:
             # Biosphere flow
             if categories:
                 sub_act = self._get_bio_activity(name, loc, categories, unit)
+                if custom_attributes:
+                    _LOGGER.warning("Custom attributes cannot apply directly to biosphere flows. Creating intermediate activity.")
+                    sub_act = agb.copyActivity(
+                        USER_DB,
+                        sub_act,
+                        name
+                    )
+                    for attr in custom_attributes:
+                        attr_dict = {attr.get(KEY_ATTR_NAME): attr.get(KEY_ATTR_VALUE)}
+                        sub_act.updateMeta(**attr_dict)
 
             # Technosphere activity
             else:
@@ -726,6 +736,7 @@ class LCAProblemConfigurator:
                     self._delete_exchanges(sub_act, act_meta, delete_exchanges)
             group.addExchanges({sub_act: exchange})
 
+        ### CASE 2: the table contains multiple activities
         for key, value in table.items():
             if isinstance(value, dict):  # value defines a sub activity
                 # Check if an activity with this key as already been defined to avoid overriding it
@@ -749,6 +760,17 @@ class LCAProblemConfigurator:
                     # Biosphere flow
                     if categories:
                         sub_act = self._get_bio_activity(name, loc, categories, unit)
+                        if custom_attributes:
+                            _LOGGER.warning(
+                                "Custom attributes cannot apply directly to biosphere flows. Creating intermediate activity.")
+                            sub_act = agb.copyActivity(
+                                USER_DB,
+                                sub_act,
+                                name
+                            )
+                            for attr in custom_attributes:
+                                attr_dict = {attr.get(KEY_ATTR_NAME): attr.get(KEY_ATTR_VALUE)}
+                                sub_act.updateMeta(**attr_dict)
 
                     # Technosphere activity
                     else:
