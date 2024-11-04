@@ -704,12 +704,17 @@ class LCAProblemConfigurator:
             if categories:
                 sub_act = self._get_bio_activity(name, loc, categories, unit)
                 if custom_attributes:
-                    _LOGGER.warning("Custom attributes cannot apply directly to biosphere flows. Creating intermediate activity.")
+                    _LOGGER.warning(f"Custom attributes cannot apply directly to biosphere flows ({name}). Creating intermediate activity.")
                     sub_act = agb.copyActivity(
                         USER_DB,
                         sub_act,
                         name
                     )
+                    # Fix for mismatch chemical formulas (until fixed by future brightway/lca-algebraic releases)
+                    for ex in sub_act.exchanges():
+                        if "formula" in ex:
+                            del ex["formula"]
+                            ex.save()
                     for attr in custom_attributes:
                         attr_dict = {attr.get(KEY_ATTR_NAME): attr.get(KEY_ATTR_VALUE)}
                         sub_act.updateMeta(**attr_dict)
@@ -761,13 +766,17 @@ class LCAProblemConfigurator:
                     if categories:
                         sub_act = self._get_bio_activity(name, loc, categories, unit)
                         if custom_attributes:
-                            _LOGGER.warning(
-                                "Custom attributes cannot apply directly to biosphere flows. Creating intermediate activity.")
+                            _LOGGER.warning(f"Custom attributes cannot apply directly to biosphere flows ({key}). Creating intermediate activity.")
                             sub_act = agb.copyActivity(
                                 USER_DB,
                                 sub_act,
-                                name
+                                key
                             )
+                            # Fix for mismatch chemical formulas (until fixed by future brightway/lca-algebraic releases)
+                            for ex in sub_act.exchanges():
+                                if "formula" in ex:
+                                    del ex["formula"]
+                                    ex.save()
                             for attr in custom_attributes:
                                 attr_dict = {attr.get(KEY_ATTR_NAME): attr.get(KEY_ATTR_VALUE)}
                                 sub_act.updateMeta(**attr_dict)
