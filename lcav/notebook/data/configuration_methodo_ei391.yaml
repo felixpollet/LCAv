@@ -68,16 +68,7 @@ model:
         short_range:
             name: 'aircraft production, passenger aircraft, short haul'
             amount: aircraft_production_short_range
-            
-    nonCO2:
-        contrails:
-            amount: contrails_kilometers
-            name: 'contrail'
-            unit: 'kilometer'
-            categories:
-                - 'air'
-                - 'lower stratosphere + upper troposphere'
-
+        
     fuel:
         unit: MJ
         
@@ -91,14 +82,20 @@ model:
                       value: 'combustion kerosene'
                       
                 CO2:
-                    amount: 0.074 * lhv_kerosene  # amount from aeromaps
+                    custom_attributes:
+                        - attribute: 'emission'
+                          value: 'CO2'
+                    amount: 0.074 * lhv_kerosene  # 74gCO2/MJ L. Jing et al. 2022 - doi: 10.1038/s41467-022-35392-1
                     name: 'carbon dioxide, fossil'  # this is a biosphere process   
                     categories:
                         - 'air'
                         - 'lower stratosphere + upper troposphere'
 
                 NOx:
-                    amount: emission_index_nox_kerosene
+                    custom_attributes:
+                        - attribute: 'emission'
+                          value: 'NOx'
+                    amount: emission_index_nox_kerosene  # emissions per kg of kerosene
                     name: 'nitrogen oxides'
                     categories:
                         - 'air'
@@ -110,7 +107,7 @@ model:
                         - 'air'
                         - 'lower stratosphere + upper troposphere'
                 H2O:
-                    amount: emission_index_h2o_kerosene
+                    amount: emission_index_h2o_kerosene  # TODO: fix water use LCIA method
                     name: 'water'
                     categories:
                         - 'air'
@@ -121,11 +118,21 @@ model:
                     categories:
                         - 'air'
                         - 'lower stratosphere + upper troposphere'
+                        
+                contrails:
+                    custom_attributes:
+                        - attribute: 'emission'
+                          value: 'Contrails'
+                    amount: total_aircraft_distance * lhv_kerosene / energy_consumption_kerosene
+                    name: 'contrail'
+                    categories:
+                        - 'air'
+                        - 'lower stratosphere + upper troposphere'
 
                 others_combustion_kero:  # amounts from Fabre et al. 2022 --> SAE, Procedure for the Calculation of Aircraft Emissions, 2009
-                    custom_attributes:
-                        - attribute: 'subphase'
-                          value: 'others combustion (kero)'
+                    #custom_attributes:
+                    #    - attribute: 'subphase'
+                    #      value: 'others combustion (kero)'
 
                     CO:
                         amount: 2.01e-3
@@ -279,7 +286,7 @@ model:
                         - 'air'
                         - 'lower stratosphere + upper troposphere'
                 H2O:
-                    amount: emission_index_h2o_biofuel
+                    amount: emission_index_h2o_biofuel  # TODO: fix water use LCIA method
                     name: 'water'
                     categories:
                         - 'air'
@@ -292,9 +299,9 @@ model:
                         - 'lower stratosphere + upper troposphere'
 
                 others_combustion_non_kero:
-                    custom_attributes:
-                        - attribute: 'subphase'
-                          value: 'others combustion (biofuel and efuel)'
+                    #custom_attributes:
+                    #    - attribute: 'subphase'
+                    #      value: 'others combustion (biofuel and efuel)'
 
                     CO:
                         amount: 2.01e-3
@@ -360,7 +367,7 @@ model:
                         - 'air'
                         - 'lower stratosphere + upper troposphere'
                 H2O:
-                    amount: emission_index_h2o_electrofuel
+                    amount: emission_index_h2o_electrofuel  # TODO: fix water use LCIA method
                     name: 'water'
                     categories:
                         - 'air'
@@ -376,9 +383,9 @@ model:
                     name: '#others_combustion_non_kero'  # reference previously defined activity
             
             production:
-                custom_attributes:
-                    - attribute: 'phase'
-                      value: 'production electrofuel'
+                #custom_attributes:
+                #    - attribute: 'phase'
+                #      value: 'production electrofuel'
                       
                 name: 'kerosene production, synthetic, Fischer Tropsch process, hydrogen from electrolysis, energy allocation' 
                 loc: 'World'
@@ -407,6 +414,9 @@ model:
                                   - input_activity: 'hydrogen production, gaseous, 30 bar, from PEM electrolysis, from grid electricity#World'
                                     new_value:
                                         hydrogen updated:
+                                            custom_attributes:
+                                              - attribute: 'phase'
+                                                value: 'production electrofuel electrolysis'
                                             name: 'hydrogen production, gaseous, 30 bar, from PEM electrolysis, from grid electricity'
                                             loc: 'World'
                                             add:
@@ -417,6 +427,23 @@ model:
                                                 - input_activity: 'market group for electricity*'
                                                   new_value:
                                                       amount: old_amount * (1 - elec_solar_share)
+                                                      
+                                                - input_activity: 'electrolyzer production, 1MWe, PEM, Balance of Plant#RER'
+                                                  new_value:
+                                                      amount: old_amount / (1 - elec_solar_share * (1 - load_factor_photovoltaic))
+                                                      
+                                                - input_activity: 'electrolyzer production, 1MWe, PEM, Stack#RER'
+                                                  new_value:
+                                                      amount: old_amount / (1 - elec_solar_share * (1 - load_factor_photovoltaic))
+                                                      
+                                                - input_activity:  'treatment of fuel cell balance of plant, 1MWe, PEM#RER'
+                                                  new_value:
+                                                      amount: old_amount / (1 - elec_solar_share * (1 - load_factor_photovoltaic))
+                                                      
+                                                - input_activity:  'treatment of fuel cell stack, 1MWe, PEM#RER'
+                                                  new_value:
+                                                      amount: old_amount / (1 - elec_solar_share * (1 - load_factor_photovoltaic))
+                                                                    
                                   - input_activity: 'carbon monoxide, from RWGS, for Fischer Tropsch process, hydrogen from electrolysis#World'
                                     new_value:
                                         carbon monoxide updated:
@@ -429,6 +456,9 @@ model:
                                                 - input_activity: 'carbon dioxide, captured from atmosphere, with a solvent-based direct air capture system, 1MtCO2, with heat pump heat, and grid electricity#World'
                                                   new_value:
                                                       direct air capture updated:
+                                                          #custom_attributes:
+                                                          #    - attribute: 'phase'
+                                                          #      value: 'production electrofuel DAC'
                                                           name: 'carbon dioxide, captured from atmosphere, with a solvent-based direct air capture system, 1MtCO2, with heat pump heat, and grid electricity'
                                                           loc: 'World'
                                                           add:
@@ -439,6 +469,10 @@ model:
                                                               - input_activity: 'market group for electricity*'
                                                                 new_value:
                                                                     amount: old_amount * (1 - elec_solar_share)  
+                                                        
+                                                              - input_activity: 'direct air capture system, solvent-based, 1MtCO2#RER'
+                                                                new_value:
+                                                                    amount: old_amount / (1 - elec_solar_share * (1 - load_factor_photovoltaic))
                                                         
                                                         
 
@@ -466,15 +500,12 @@ methods:  # tip: you can search for methods with lca_algebraic function agb.find
     - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: ecosystem quality', 'ecosystem quality')"
     - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: human health', 'human health')"
     - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: natural resources', 'natural resources')"
-    
 
+    
 custom_methods:
-    - name: "('Custom methods', 'climate change', 'GWP100 (contrails only)')"
+    - name: "('Custom methods', 'climate change', 'GWP100 (with non-CO2)')"
       filepath: './data/lcia_contrails.csv'  # This is where you define the CFs. Any flow not already existing (e.g. contrails) is automatically added.
       unit: 'kg CO2-Eq'
       source_method: "('ReCiPe 2016 v1.03, midpoint (H)', 'climate change',  'global warming potential (GWP100)')"
       # if provided, the source method is duplicated and updated with the cfs provided in the filepath (cf modification or addition).
       # otherwise, the lcia method is built from scratch.
-      
-      
-      

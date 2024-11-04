@@ -704,11 +704,13 @@ class LCAProblemConfigurator:
             if categories:
                 sub_act = self._get_bio_activity(name, loc, categories, unit)
                 if custom_attributes:
-                    _LOGGER.warning(f"Custom attributes cannot apply directly to biosphere flows ({name}). Creating intermediate activity.")
-                    sub_act = agb.copyActivity(
-                        USER_DB,
-                        sub_act,
-                        name
+                    _LOGGER.warning(
+                        f"Custom attributes cannot apply directly to biosphere flows ({name}). Creating intermediate activity.")
+                    sub_act = agb.newActivity(
+                        db_name=USER_DB,
+                        name=name,
+                        unit=unit,
+                        exchanges={sub_act: 1.0},
                     )
                     # Fix for mismatch chemical formulas (until fixed by future brightway/lca-algebraic releases)
                     for ex in sub_act.exchanges():
@@ -767,10 +769,11 @@ class LCAProblemConfigurator:
                         sub_act = self._get_bio_activity(name, loc, categories, unit)
                         if custom_attributes:
                             _LOGGER.warning(f"Custom attributes cannot apply directly to biosphere flows ({key}). Creating intermediate activity.")
-                            sub_act = agb.copyActivity(
-                                USER_DB,
-                                sub_act,
-                                key
+                            sub_act = agb.newActivity(
+                                db_name=USER_DB,
+                                name=key,
+                                unit=unit,
+                                exchanges={sub_act: 1.0},
                             )
                             # Fix for mismatch chemical formulas (until fixed by future brightway/lca-algebraic releases)
                             for ex in sub_act.exchanges():
