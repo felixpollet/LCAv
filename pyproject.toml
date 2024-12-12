@@ -15,15 +15,17 @@ readme = "README.md"
 python = ">=3.10,<3.12"
 
 # Core LCA libraries
-lca-algebraic = "1.1.2"
-premise = "2.0.2"
+#lca-algebraic = "^1.1.2"
+# Installation on MacOS with poetry does not like lca-algebraic... Installing from source instead
+lca-algebraic-dev = {git = "https://github.com/oie-mines-paristech/lca_algebraic.git", branch = "main"}
+premise = "^2.0.2"
 #bw2io = "0.8.12"
 #bw2data = "3.6.6"
 #bw2calc = "1.8.2"
 
 # Data visualization
 matplotlib = "^3.7"
-plotly = "^5.0.0"
+#plotly = "^5.0.0"
 pyvis = "^0.3.0"
 
 # Graphical User Interface
