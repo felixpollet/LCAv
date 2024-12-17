@@ -201,7 +201,8 @@ def create_custom_lcia_method(name: str, filepath: str, unit: str = None, source
     """
 
     if name in bw.methods and bw.methods.get(name).get('description') != DEFAULT_DESC_LCIA:
-        _LOGGER.warning(f"Method {name} already exists as default LCIA method. "
+        # TODO: find a better way to check if method is a default one
+        _LOGGER.warning(f"Method {name} already exists as default LCIA method and is protected. "
              f"If you wish to duplicate and modify, use `{KEY_SOURCE_METHOD}` option.")
         return
 
@@ -340,7 +341,7 @@ class LCAProblemConfigurator:
             if key not in json_schema["properties"].keys():
                 _LOGGER.warning(f"Configuration file: {key} is not a key declared in LCAv.")
 
-    def _setup_premise(self, new_premise_scenarios):
+    def _setup_premise(self, new_premise_scenarios: List[Dict], db_names: List[str] = None):
         """
         Generates the prospective databases with premise
         """
@@ -369,7 +370,7 @@ class LCAProblemConfigurator:
             ndb.update()
         elif isinstance(sectors_to_update, list):
             ndb.update(sectors_to_update)
-        ndb.write_db_to_brightway()
+        ndb.write_db_to_brightway(name=db_names)
 
     def _setup_project(self, reset: bool = False):
         """
@@ -417,6 +418,7 @@ class LCAProblemConfigurator:
 
         ### Generate prospective databases with premise
         new_premise_scenarios = []
+        db_names = []
         for scenario in self.premise_scenarios:
             model = scenario[KEY_MODEL]
             pathway = scenario[KEY_PATHWAY]
@@ -424,7 +426,8 @@ class LCAProblemConfigurator:
             db_name = f"ecoinvent_{ei_model}_{ei_version.replace('3.9.1', '3.9')}_{model}_{pathway}_{year}"
             if db_name not in bw.databases:
                 new_premise_scenarios.append(scenario)
-        self._setup_premise(new_premise_scenarios)
+                db_names.append(db_name)
+        self._setup_premise(new_premise_scenarios, db_names)
 
         ### Create new LCIA methods provided by user
         custom_methods = self._serializer.data.get(KEY_CUSTOM_METHODS, [])
