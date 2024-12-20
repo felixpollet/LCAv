@@ -1,0 +1,50 @@
+# The name of your project. This will set up a brightway project.
+project: tutorial
+
+
+# The version and model of ecoinvent to use.
+ecoinvent:
+    version: '3.10'
+    model: 'cutoff'
+    # Note: import of ecoinvent requires to provide credentials.
+    # For privacy reasons, we ask you to create a file named .env, that you will not share/commit,
+    # and contains the following :
+        # ECOINVENT_LOGIN=<your_login>
+        # ECOINVENT_PASSWORD=<your_password>
+
+
+# The LCA model
+model:
+
+    food:
+        amount: 2 * a  # specify amount of food as a float or a formula
+
+        cheese:
+            amount: 3 * b + c
+            name: 'market for cheese, from cow milk, fresh, unripened'
+            
+        carrots:
+            name: 'carrot production'
+            loc: 'NL'  # specify location
+            # default amount value is 1.0
+            
+    drink:
+        name: 'soybean beverage production'
+        loc: 'RoW'
+        unit: 'litre'  # or 'kilogram'
+        amount: d / a + 1.0
+        
+    methane:
+        amount: 1e-6
+        name: 'methane, fossil'
+        categories:
+            - 'air'
+            - 'urban air close to ground'
+                                                                                                          
+
+# The LCIA methods
+methods:  # tip: you can search for methods with lca_algebraic function agb.findMethods()
+    - "('ReCiPe 2016 v1.03, midpoint (H)', 'climate change',  'global warming potential (GWP100)')"
+    - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: ecosystem quality', 'ecosystem quality')"
+    - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: human health', 'human health')"
+    - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: natural resources', 'natural resources')"

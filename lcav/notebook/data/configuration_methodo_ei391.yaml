@@ -3,8 +3,8 @@ project: example_methodology_ei391
 reset_project: False
 
 ecoinvent:
-    version: 3.9.1
-    model: cutoff
+    version: "3.9.1"
+    model: "cutoff"
     # Note: import of ecoinvent requires to provide credentials.
     # For privacy reasons, we ask you to create a file named .env, that you will not share /commit,
     # and contains the following :

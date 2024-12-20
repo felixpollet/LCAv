@@ -1,0 +1,90 @@
+# The name of your project. This will set up a brightway project.
+project: tutorial
+
+
+# The version and model of ecoinvent to use.
+ecoinvent:
+    version: '3.10'
+    model: 'cutoff'
+    
+    
+# Prospective LCA with premise
+premise:
+    scenarios: # The ecoinvent database will be duplicated and modified according to each element of this list
+        - model: "remind"
+          pathway: "SSP2-Base"
+          year: 2020
+        - model: "remind"
+          pathway: "SSP2-Base"
+          year: 2030
+        - model: "remind"
+          pathway: "SSP2-Base"
+          year: 2040
+
+    update: all  # all sectors (recommanded)
+        # Or a list of individual sectors to be updated
+        # - electricity
+        # - biomass
+        # - dac
+
+
+# The LCA model
+model:
+
+    food:
+        amount: 2 * a  # specify amount of food as a float or a formula
+
+        cheese:
+            amount: 3 * b + c
+            name: 'market for cheese, from cow milk, fresh, unripened'
+            
+        carrots:
+            name: 'carrot production'
+            loc: 'NL'  # specify location
+            # default amount value is 1.0
+            
+    drink:
+        name: 'soybean beverage production'
+        loc: 'RoW'
+        unit: 'litre'  # or 'kilogram'
+        amount: d / a + 1.0
+        
+    methane:
+        amount: 1e-6
+        name: 'methane, fossil'
+        categories:
+            - 'air'
+            - 'urban air close to ground'
+            
+    alternative_food:
+    
+        original_food:
+            amount: 10 - 2 * a
+            name: '#food'
+        
+        meat:
+            name: 'market for meat and bone meal'
+            loc: 'CH'
+            add:
+                - amount: 1e-6
+                  name: 'carbon dioxide, fossil'
+                  categories:
+                      - 'air'
+                      - 'urban air close to ground'
+            update:
+                - input_activity: 'market for transport, freight train#CH'
+                  new_value:
+                      name: 'transport, freight, aircraft, belly-freight, short haul'  # replace freight train by air transport
+                - input_activity: 'market for transport, freight, lorry, unspecified#RER'
+                  new_value:
+                      amount: old_amount * (1 - p)  # replace freight train by air transport
+                
+        
+                                                                                                          
+
+# The LCIA methods
+methods:  # tip: you can search for methods with lca_algebraic function agb.findMethods()
+    - "('ReCiPe 2016 v1.03, midpoint (H)', 'climate change',  'global warming potential (GWP100)')"
+    - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: ecosystem quality', 'ecosystem quality')"
+    - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: human health', 'human health')"
+    - "('ReCiPe 2016 v1.03, endpoint (H)', 'total: natural resources', 'natural resources')"

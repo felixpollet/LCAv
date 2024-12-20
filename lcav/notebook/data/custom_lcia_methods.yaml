@@ -1,0 +1,59 @@
+# The name of your project. This will set up a brightway project.
+project: tutorial
+
+
+# The version and model of ecoinvent to use.
+ecoinvent:
+    version: '3.10'
+    model: 'cutoff'
+
+
+# The LCA model
+model:
+
+    food:
+        amount: 2 * a  # specify amount of food as a float or a formula
+
+        cheese:
+            amount: 3 * b + c
+            name: 'market for cheese, from cow milk, fresh, unripened'
+            
+        carrots:
+            name: 'carrot production'
+            loc: 'NL'  # specify location
+            # default amount value is 1.0
+            
+    drink:
+        name: 'soybean beverage production'
+        loc: 'RoW'
+        unit: 'litre'  # or 'kilogram'
+        amount: d / a + 1.0
+        
+    methane:
+        amount: 1e-6
+        name: 'methane, fossil'
+        categories:
+            - 'air'
+            - 'urban air close to ground'
+            
+    contrails:
+        amount: 3.0
+        name: 'contrail'  # This biosphere flow does not exist originally but in the custom LCIA method declared below, so will be recognized.
+        categories:
+            - 'air'
+            - 'lower stratosphere + upper troposphere'
+                                                                                                          
+
+# The LCIA methods
+methods:  # tip: you can search for methods with lca_algebraic function agb.findMethods()
+    - "('ReCiPe 2016 v1.03, midpoint (H)', 'climate change',  'global warming potential (GWP100)')"
+    
+    
+custom_methods:
+    - name: "('Custom methods', 'climate change', 'GWP100 (updated)')"  # Name of your custom method
+      filepath: './data/lcia_gwp100_custom.csv'  # This is where you define the CFs. Any flow not already existing (e.g. contrails) is automatically added.
+      unit: 'kg CO2-Eq'
+      source_method: "('ReCiPe 2016 v1.03, midpoint (H)', 'climate change',  'global warming potential (GWP100)')"
+      # if provided, the source method is duplicated and updated with the cfs provided in the filepath (modification or addition of characterization factors).
+      # otherwise, the lcia method is built from scratch.
+
