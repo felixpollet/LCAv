@@ -228,6 +228,46 @@
     "model": {
       "$ref": "#/definitions/model"
     },
+    "parameters_metadata": {
+        "$comment": "List LCA parameters and their metadata, e.g. to set units and default values",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "parameter": {
+              "type": "string"
+            },
+            "default": {
+              "type": "number"
+            },
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "unit": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "distrib": {
+              "type": "string"
+            },
+            "formula": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "group": {
+              "type": "string"
+            }
+          },
+          "required": ["parameter"]
+        }
+    },
     "methods": {
       "type": [
         "array",

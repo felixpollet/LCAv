@@ -41,6 +41,7 @@ KEY_NORMALIZED_MODEL = 'normalized model'
 KEY_EXCHANGE = 'amount'
 KEY_SWITCH = 'is_switch'
 KEY_NAME = 'name'
+KEY_PARAMETER = 'parameter'
 KEY_LOCATION = 'loc'
 KEY_CATEGORIES = 'categories'
 KEY_UNIT = 'unit'
@@ -49,6 +50,7 @@ KEY_ATTR_NAME = 'attribute'
 KEY_ATTR_VALUE = 'value'
 EXCHANGE_DEFAULT_VALUE = 1.0  # default value for the exchange between two activities
 SWITCH_DEFAULT_VALUE = False  # default foreground activity type (True: it is a switch activity; False: it is a regular activity)
+KEY_METADATA = 'parameters_metadata'
 KEY_METHODS = 'methods'
 KEY_CUSTOM_METHODS = 'custom_methods'
 KEY_PREMISE = 'premise'
@@ -89,18 +91,22 @@ def is_comma_separated(file_path):
         return ',' in first_line
 
 
-def _parse_exchange(table: dict, act: ActivityExtended = None):
+def _parse_exchange(table: dict, act: ActivityExtended = None, params_meta_dict: dict = None):
     """
     Gets the exchange expression from the table of options for the activity, then creates the input parameters and returns the symbolic expression of the exchange
 
-    :param table: the table of options for the activity
-    :return expr: the symbolic expression
+    :param table: the table of options for the activity.
+    :param act: the activity itself. Only used if special formula sum() is used in the exchange amount.
+    :param params_meta_dict: metadata of the parameters, as defined in a specific section of the configuration file.
+    :return expr: the symbolic expression.
     """
+    params_meta_dict = params_meta_dict if params_meta_dict else {}
 
-    # Get the 'exchange' value. If it doesn't exist then set the exchange value to 1
+    # Get the 'amount' value of the exchange. If it doesn't exist then set the exchange quantity to 1
     exchange = table.get(KEY_EXCHANGE, EXCHANGE_DEFAULT_VALUE)
 
-    # Special formulas
+    # Special formula sum() to sum the amounts of all exchanges with a given name in the activity
+    # E.g. 'sum(electricity*)' will sum the amounts of all exchanges with the name 'electricity' (whatever the location)
     if 'sum(' in str(exchange) and act:
         selected_exchanges = str(exchange).split('sum(')[1].split(')')[0]
         if selected_exchanges:
@@ -113,16 +119,35 @@ def _parse_exchange(table: dict, act: ActivityExtended = None):
     # Get the parameters involved in the expression
     parameters = expr.free_symbols
 
-    # Create the parameters
+    # Create new parameters if necessary
     for param in parameters:
-        if param == agb.old_amount:
+        if param == agb.old_amount:  # skip the special 'old_amount' parameter
             continue
-        if param not in all_params():
+        if param not in all_params():  # create the parameter if it doesn't exist
+            # Get the metadata of the parameter if provided in specific section of the configuration file
+            param_meta = params_meta_dict.get(param.name, {})
+            default = param_meta.get('default', 1.0)
+            min_val = param_meta.get('min', 1.0)
+            max_val = param_meta.get('max', 1.0)
+            unit = param_meta.get('unit', None)
+            description = param_meta.get('description', None)
+            distrib = param_meta.get('distrib', agb.DistributionType.LINEAR)
+            formula = sympify(param_meta.get('formula', None))
+            label = param_meta.get('label', None)
+            group = param_meta.get('group', None)
+
+            # Create new parameter
             agb.newFloatParam(
                 param.name,  # name of the parameter
-                default=1.0,  # default value
-                min=1.0,
-                max=1.0,
+                default=default,  # default value
+                min=min_val,
+                max=max_val,
+                unit=unit,
+                description=description,
+                distrib=distrib,
+                formula=formula,
+                label=label,
+                group=group,
                 dbname=USER_DB  # we define the parameter in the foreground database
             )
 
@@ -455,6 +480,13 @@ class LCAProblemConfigurator:
         ### Set up the project
         project_name = self._setup_project(reset=reset)
 
+        ### Get parameters metadata if declared (used for parameters definition during the model creation)
+        params_meta_array = self._serializer.data.get(KEY_METADATA)  # List of dictionaries (one per parameter)
+        if params_meta_array:
+            self.params_meta_dict = {param_metadata.get(KEY_PARAMETER): param_metadata for param_metadata in params_meta_array}
+        else:
+            self.params_meta_dict = {}
+
         ### Build the model
         print("Building LCA model from configuration file...", end=' ')
         # Get model definition from configuration file
@@ -697,7 +729,7 @@ class LCAProblemConfigurator:
             loc = table.get(KEY_LOCATION, None)
             unit = table.get(KEY_UNIT, None)
             categories = table.get(KEY_CATEGORIES, None)
-            exchange = _parse_exchange(table)
+            exchange = _parse_exchange(table, params_meta_dict=self.params_meta_dict)
             custom_attributes = table.get(KEY_CUSTOM_ATTR, [])
             update_exchanges = table.get(KEY_UPDATE_ACT, [])
             delete_exchanges = table.get(KEY_DELETE, [])
@@ -761,7 +793,7 @@ class LCAProblemConfigurator:
                     loc = value.get(KEY_LOCATION, None)
                     unit = value.get(KEY_UNIT, None)
                     categories = value.get(KEY_CATEGORIES, None)
-                    exchange = _parse_exchange(value)
+                    exchange = _parse_exchange(value, params_meta_dict=self.params_meta_dict)
                     custom_attributes = value.get(KEY_CUSTOM_ATTR, [])
                     update_exchanges = value.get(KEY_UPDATE_ACT, [])
                     delete_exchanges = value.get(KEY_DELETE, [])
@@ -818,7 +850,7 @@ class LCAProblemConfigurator:
                         group.addExchanges({sub_act: exchange})
                 else:
                     # It is a group
-                    exchange = _parse_exchange(value)  # exchange with parent group
+                    exchange = _parse_exchange(value, params_meta_dict=self.params_meta_dict)  # exchange with parent group
                     unit = value.get(KEY_UNIT, None)  # activity unit
                     is_switch = value.get(KEY_SWITCH, None)
                     switch_param = None
@@ -872,7 +904,7 @@ class LCAProblemConfigurator:
 
     def _update_exchanges(self, act, act_meta, update_exchanges):
         """
-        Updates exchanges of an activity with new values.
+        Updates exchanges of an activity already defined (e.g. ecoinvent activity) with new values.
         :param act: activity to be updated
         :param act_meta: dictionary of (name, loc, unit) of the original activity in ecoinvent
         :param update_exchanges: exchanges of the activity to be updated
@@ -894,13 +926,13 @@ class LCAProblemConfigurator:
 
             # TODO: refactor to allow sum() formula in new amount. See _add_exchanges() for example
             if KEY_EXCHANGE in new_value and len(new_value) == 1:  # update the amount only
-                new_amount = _parse_exchange(new_value)
+                new_amount = _parse_exchange(new_value, params_meta_dict=self.params_meta_dict)
                 new_input = None
             elif KEY_EXCHANGE not in new_value:  # update the input activity only
                 new_amount = None
                 new_input = self._get_new_input(new_value)
             else:  # update both amount and input activity
-                new_amount = _parse_exchange(new_value)
+                new_amount = _parse_exchange(new_value, params_meta_dict=self.params_meta_dict)
                 new_input = self._get_new_input(new_value)
 
             if not self.premise_scenarios:
@@ -937,7 +969,7 @@ class LCAProblemConfigurator:
 
     def _delete_exchanges(self, act, act_meta, delete_exchanges):
         """
-        Deletes exchanges of an activity.
+        Deletes exchanges of an activity already defined (e.g. ecoinvent activity).
         :param act: activity to be updated
         :param act_meta: dictionary of (name, loc, unit) of the original activity in ecoinvent
         :param delete_exchanges: exchanges of the activity to be deleted
@@ -964,7 +996,7 @@ class LCAProblemConfigurator:
 
     def _add_exchanges(self, act, act_meta, add_exchanges):
         """
-        Adds exchanges to an activity.
+        Adds exchanges to an activity already defined (e.g. ecoinvent activity).
         :param act: activity to be updated
         :param act_meta: dictionary of (name, loc, unit) of the original activity in ecoinvent
         :param add_exchanges: exchanges to be added to the activity
@@ -987,14 +1019,14 @@ class LCAProblemConfigurator:
             new_input = self._get_new_input(add)
 
             if not self.premise_scenarios:
-                new_amount = _parse_exchange(add, act=act)
+                new_amount = _parse_exchange(add, act=act, params_meta_dict=self.params_meta_dict)
                 exchanges_to_add[new_input] = new_amount
 
             else:
                 for key, act_premise in acts_premise.items():
                     if key not in premise_exchanges_to_add:
                         premise_exchanges_to_add[key] = {}
-                    new_amount = _parse_exchange(add, act=act_premise)
+                    new_amount = _parse_exchange(add, act=act_premise, params_meta_dict=self.params_meta_dict)
                     if isinstance(new_input, dict):
                         premise_exchanges_to_add[key][new_input[key]] = new_amount
                     else:
