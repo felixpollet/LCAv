@@ -1,8 +1,8 @@
-🚀 LCAv
+🚀 LCA-Modeller
 ----------------
-*LCAv* offers a streamlined interface to facilitate the creation of **parametric LCA models** with **prospective capabilities**. It builds on the open-source libraries [*lca-algebraic*](https://lca-algebraic.readthedocs.io/) and [*premise*](https://premise.readthedocs.io/), so having a basic understanding of these tools is recommended.
+*LCA-Modeller* offers a streamlined interface to facilitate the creation of **parametric LCA models** with **prospective capabilities**. It builds on the open-source libraries [*lca-algebraic*](https://lca-algebraic.readthedocs.io/) and [*premise*](https://premise.readthedocs.io/), so having a basic understanding of these tools is recommended.
 
-The core functionality of *LCAv* revolves around reading a user-provided configuration file that defines the LCA model. From this configuration file, *LCAv* generates a parametric LCA model with *lca-algebraic*, which can then be evaluated for any parameter values using *lca-algebraic*'s built-in functions.
+The core functionality of *LCA-Modeller* revolves around reading a user-provided configuration file that defines the LCA model. From this configuration file, *LCA-Modeller* generates a parametric LCA model with *lca-algebraic*, which can then be evaluated for any parameter values using *lca-algebraic*'s built-in functions.
 <br> 
 If prospective scenarios are provided, *premise* is used to adapt the EcoInvent database to future conditions. The parametric LCA model then interpolates the prospective databases to enable the evaluation for any year specified by the user.
 
@@ -12,22 +12,22 @@ Additional features include the definition of custom impact assessment methods a
 📦 Installation
 ----------------
 **No pip installation is provided at the moment.** <br>
-To install *LCAv*, setup a separate conda environment:
+To install *LCA-Modeller*, setup a separate conda environment:
 ```bash
 conda create -n lca-modeller python==3.10
 conda activate lca-modeller
 ```
-And git clone the repository. Then, install *LCAv* using [poetry](https://python-poetry.org/docs/) by setting the current directory to the root of the repository and running:
+And git clone the repository. Then, install *LCA-Modeller* using [poetry](https://python-poetry.org/docs/) by setting the current directory to the root of the repository and running:
 ```bash
 poetry install
 ```
 
-A tutorial notebook is provided in the `notebooks` directory to help you get started with *LCAv*.
+A tutorial notebook is provided in the `notebooks` directory to help you get started with *LCA-Modeller*.
 
 
 ✈️ Applications
 ----------------
-*LCAv* is currently being used in the following projects:
+*LCA-Modeller* is currently being used in the following projects:
 * [AeroMAPS](https://github.com/AeroMAPS/AeroMAPS) : Multidisciplinary Assessment of Prospective Scenarios for air transport.
 * [FAST-UAV](https://github.com/SizingLab/FAST-UAV): Future Aircraft Sizing Tool - Unmanned Aerial Vehicles
 * [FAST-OAD](https://github.com/fast-aircraft-design/FAST-OAD): Future Aircraft Sizing Tool - Overall Aircraft Design
