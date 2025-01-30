@@ -16,7 +16,7 @@ from ruamel.yaml import YAML
 from dotenv import load_dotenv
 import premise as pm
 
-from lcav.io import resources
+from lca_modeller.io import resources
 from lca_algebraic.params import (
     ParamDef, all_params
 )
@@ -24,7 +24,7 @@ from lca_algebraic.activity import ActivityOrActivityAmount, newActivity, Activi
 from typing import Dict, List, Union, Tuple
 from functools import reduce
 from collections import defaultdict
-from lcav.helpers import safe_delete_brightway_project
+from lca_modeller.helpers import safe_delete_brightway_project
 
 BIOSPHERE3_DB_NAME = "biosphere3"
 USER_BIOSPHERE_DB_NAME = "biosphere_user"
@@ -364,7 +364,7 @@ class LCAProblemConfigurator:
         # Issue a simple warning for unknown keys at root level
         for key in self._serializer.data:
             if key not in json_schema["properties"].keys():
-                _LOGGER.warning(f"Configuration file: {key} is not a key declared in LCAv.")
+                _LOGGER.warning(f"Configuration file: {key} is not a key declared in lca_modeller.")
 
     def _setup_premise(self, new_premise_scenarios: List[Dict], db_names: List[str] = None):
         """

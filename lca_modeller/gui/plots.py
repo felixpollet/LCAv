@@ -5,7 +5,7 @@ from pyvis.network import Network
 import os
 from IPython.display import display, HTML, IFrame
 from lca_algebraic.activity import Activity
-from lcav.helpers import list_processes
+from lca_modeller.helpers import list_processes
 import matplotlib
 import matplotlib.pyplot as plt
 
