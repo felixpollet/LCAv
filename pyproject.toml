@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "lcav"
+name = "lca-modeller"
 version = "0.0.0"
 description = "Python library to build parametric LCA models from a configuration file. "
 authors = [

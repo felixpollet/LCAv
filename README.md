@@ -14,8 +14,8 @@ Additional features include the definition of custom impact assessment methods a
 **No pip installation is provided at the moment.** <br>
 To install *LCAv*, setup a separate conda environment:
 ```bash
-conda create -n lcav python==3.10
-conda activate lcav
+conda create -n lca-modeller python==3.10
+conda activate lca-modeller
 ```
 And git clone the repository. Then, install *LCAv* using [poetry](https://python-poetry.org/docs/) by setting the current directory to the root of the repository and running:
 ```bash
