@@ -7,6 +7,30 @@ on:
     types: [ published ]
 
 jobs:
+  move-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move tag
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              await github.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: "tags/latest-release",
+              })
+            } catch (e) {
+              console.log("Tag does not exist." + e)
+            }
+            await github.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "refs/tags/latest-release",
+              sha: context.sha
+            })
+
   build-publish-package:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -15,29 +39,29 @@ jobs:
         os: [ ubuntu-latest ]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install Poetry
-        run: |
-          pipx install poetry==${{ vars.POETRY_VERSION }} --python $(which python)
-          pipx inject poetry poetry-dynamic-versioning[plugin]
+        run: pipx install poetry==${{ vars.POETRY_VERSION }} --python $(which python)
         shell: bash
 
       - name: Poetry path
         run: echo "$HOME/.poetry/bin" >> $GITHUB_PATH
         shell: bash
 
-      - name: Build LCA-Modeller
-        run: poetry build
+      - name: Set version and build LCA-Modeller
+        run: |
+          poetry version $( echo ${{ github.ref }} | sed 's%refs/tags/%%' )
+          poetry build
         shell: bash
 
-      - name: publish LCA-Modeller to PyPI
+      - name: publish to PyPI
         env:
-          TOKEN: ${{ secrets.PYPI }} # do not use the secret directly in run command, it would write it plainly in the log
+          TOKEN: ${{ secrets.PyPI }} # do not use the secret directly in run command, it would write it plainly in the log
         run: |
           poetry config pypi-token.pypi "$TOKEN"
           poetry publish
