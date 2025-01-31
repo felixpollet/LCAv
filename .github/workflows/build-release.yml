@@ -7,30 +7,6 @@ on:
     types: [ published ]
 
 jobs:
-  move-tag:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Move tag
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            try {
-              await github.git.deleteRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: "tags/latest-release",
-              })
-            } catch (e) {
-              console.log("Tag does not exist." + e)
-            }
-            await github.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: "refs/tags/latest-release",
-              sha: context.sha
-            })
-
   build-publish-package:
     runs-on: ${{ matrix.os }}
     strategy:
