@@ -1878,6 +1878,20 @@ docs = ["docutils", "sphinx (>=5.0)"]
 test = ["pytest"]
 
 [[package]]
+name = "intel-cmplr-lib-ur"
+version = "2025.0.4"
+description = "Intel® oneAPI Unified Runtime Libraries package"
+optional = false
+python-versions = "*"
+files = [
+    {file = "intel_cmplr_lib_ur-2025.0.4-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:d36d586721f0cb87b051aca1bf3f653ccee7960f15efb0132e5482d95c5b2c9b"},
+    {file = "intel_cmplr_lib_ur-2025.0.4-py2.py3-none-win_amd64.whl", hash = "sha256:4e29099b10b2f3b6ab3d45f9f18e14877b20ff96b1694d0edd98a802a7b66f16"},
+]
+
+[package.dependencies]
+umf = "==0.9.*"
+
+[[package]]
 name = "intel-openmp"
 version = "2023.2.0"
 description = "Intel OpenMP* Runtime Library"
@@ -1890,6 +1904,20 @@ files = [
     {file = "intel_openmp-2023.2.0-py2.py3-none-win32.whl", hash = "sha256:9c429a3e371c50aa9ed4fda56e905fd49a29b706633149e39e9c414adf8a91f9"},
     {file = "intel_openmp-2023.2.0-py2.py3-none-win_amd64.whl", hash = "sha256:49a85f4532041da84ceb0fb7a1c207614bf4d56def11ba2d456a9cd17943c15b"},
 ]
+
+[[package]]
+name = "intel-openmp"
+version = "2025.0.4"
+description = "Intel OpenMP* Runtime Library"
+optional = false
+python-versions = "*"
+files = [
+    {file = "intel_openmp-2025.0.4-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:bf31d1cbf3f857b90a7e3c1caab75a546445845e14fd24439e81a70bcbc8d783"},
+    {file = "intel_openmp-2025.0.4-py2.py3-none-win_amd64.whl", hash = "sha256:9dd9c2918158bd19395f28ee2e4b91c00bd86fe45b627e765f611478c7c2c173"},
+]
+
+[package.dependencies]
+intel-cmplr-lib-ur = "2025.0.4"
 
 [[package]]
 name = "ipykernel"
@@ -2869,20 +2897,18 @@ tbb = "==2021.*"
 
 [[package]]
 name = "mkl"
-version = "2024.2.2"
+version = "2025.0.1"
 description = "Intel® oneAPI Math Kernel Library"
 optional = false
 python-versions = "*"
 files = [
-    {file = "mkl-2024.2.2-py2.py3-none-manylinux1_i686.whl", hash = "sha256:747fffa9b4e95a95eef3153592783f80f27720240aa1f722826d2cba7347fab8"},
-    {file = "mkl-2024.2.2-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:915e81274ac20964e60156ed940e0eeb29dab0c282b915ad2e231db0021b980d"},
-    {file = "mkl-2024.2.2-py2.py3-none-win32.whl", hash = "sha256:fed046122c87b41f16bfe59606e0c1aacefa5bf52e03746abd2c0075d28f5beb"},
-    {file = "mkl-2024.2.2-py2.py3-none-win_amd64.whl", hash = "sha256:63a286f8a39bfa3bf8846be304a39fbe6a58615755888d54e18b63fa37ca1d04"},
+    {file = "mkl-2025.0.1-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:581b3de496bd004ab2d2bd38775bbcc885303270687940848a19747cce45d47b"},
+    {file = "mkl-2025.0.1-py2.py3-none-win_amd64.whl", hash = "sha256:5b7ee0dd14038ea1e1b0eb484f3a883b50aa0130da5d31e8734b960218eb4255"},
 ]
 
 [package.dependencies]
-intel-openmp = ">=2023"
-tbb = "==2021.*"
+intel-openmp = ">=2024"
+tbb = "==2022.*"
 
 [[package]]
 name = "mpmath"
@@ -5212,6 +5238,31 @@ files = [
 ]
 
 [[package]]
+name = "tbb"
+version = "2022.0.0"
+description = "Intel® oneAPI Threading Building Blocks (oneTBB)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "tbb-2022.0.0-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:15a15a4e3ea4c3f3198bdb3c55fac75c589e15ed2ad0bbb080900d355c5b017e"},
+    {file = "tbb-2022.0.0-py3-none-win_amd64.whl", hash = "sha256:6a0bae732599ec5c082f46e4aaf14bdbef1621e8cd0c6fcf64d50d347c2ebda4"},
+]
+
+[package.dependencies]
+tcmlib = "==1.*"
+
+[[package]]
+name = "tcmlib"
+version = "1.2.0"
+description = "Thread Composability Manager"
+optional = false
+python-versions = "*"
+files = [
+    {file = "tcmlib-1.2.0-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:dee9a0665ffa0a74f0ec72844ef7d82e9178ebf6980a76ac65906303d5ed4d03"},
+    {file = "tcmlib-1.2.0-py2.py3-none-win_amd64.whl", hash = "sha256:f751e005fd815ed0efeb87d4523f6a0938c5671e59ac935614f42d8ebb6489c9"},
+]
+
+[[package]]
 name = "terminado"
 version = "0.18.1"
 description = "Tornado websocket backend for the Xterm.js Javascript terminal emulator library."
@@ -5401,6 +5452,20 @@ files = [
     {file = "tzdata-2025.1-py2.py3-none-any.whl", hash = "sha256:7e127113816800496f027041c570f50bcd464a020098a3b6b199517772303639"},
     {file = "tzdata-2025.1.tar.gz", hash = "sha256:24894909e88cdb28bd1636c6887801df64cb485bd593f2fd83ef29075a81d694"},
 ]
+
+[[package]]
+name = "umf"
+version = "0.9.1"
+description = "Unified Memory Framework"
+optional = false
+python-versions = "*"
+files = [
+    {file = "umf-0.9.1-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:2f7b8eb45e182b24823be420063799ea89b4f1cad6b9510b1fc6e04b809c7ec2"},
+    {file = "umf-0.9.1-py2.py3-none-win_amd64.whl", hash = "sha256:9d1336d63c7a6b36af1f76dab942a760168da519a1bfe6941fc6418198b10820"},
+]
+
+[package.dependencies]
+tcmlib = "1.2"
 
 [[package]]
 name = "unfold"
@@ -5757,4 +5822,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "7d4f2cf23901c27ef744f2f684d06bb797d2fdca9f01e80b39c23d133b624137"
+content-hash = "c3a46f148b52dc4e4fad76b16b79bd44b9a7227001b10eeeb4c2335969cac1a8"
