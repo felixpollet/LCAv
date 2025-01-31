@@ -29,7 +29,10 @@ matplotlib = "^3.7"
 pyvis = "^0.3.0"
 
 # Resolving specific dependencies for macOS --> compatibility with pypardiso package imported by lca-algebraic
-mkl = {version = "2023.2.2", markers = "sys_platform == 'darwin'"}
+mkl = [
+    {version = "2023.2.2", markers = "sys_platform == 'darwin'"},
+    {version = "^2025.0.0", markers = "sys_platform != 'darwin'"}
+    ]
 tbb = {version = "2021.10.0", markers = "sys_platform == 'darwin'"}
 intel-openmp = {version = "2023.2.0", markers = "sys_platform == 'darwin'"}
 eight = {version = "^1.0.1", markers = "sys_platform == 'darwin'"}
