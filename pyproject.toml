@@ -18,6 +18,7 @@ lca-algebraic = "^1.2"
 jupyterlab = "*"
 "ruamel.yaml" = ">=0.15, <0.19"  # "^0.18.5"
 ensure = "^1.0.0"
+eight = "^1.0.1"
 
 # Brigthway2 only (not Brightway25, which is not yet compatible with LCA-algebraic)
 bw2data = "^3.6.6"
@@ -29,10 +30,19 @@ matplotlib = "^3.7"
 pyvis = "^0.3.0"
 
 # Resolving specific dependencies for macOS --> compatibility with pypardiso package imported by lca-algebraic
-mkl = {version = "2023.2.2", markers = "sys_platform == 'darwin'"}
-tbb = {version = "2021.10.0", markers = "sys_platform == 'darwin'"}
-intel-openmp = {version = "2023.2.0", markers = "sys_platform == 'darwin'"}
-eight = {version = "^1.0.1", markers = "sys_platform == 'darwin'"}
+mkl = [
+    {version = "2023.2.2", markers = "sys_platform == 'darwin'"},
+    {version = "*", markers = "sys_platform != 'darwin'"}
+    ]
+tbb = [
+    {version = "2021.10.0", markers = "sys_platform == 'darwin'"},
+    {version = "*", markers = "sys_platform != 'darwin'"}
+    ]
+intel-openmp = [
+    {version = "2023.2.0", markers = "sys_platform == 'darwin'"},
+    {version = "*", markers = "sys_platform != 'darwin'"}
+    ]
+#eight = {version = "^1.0.1", markers = "sys_platform == 'darwin'"}
 
 [build-system]
 requires = ["poetry-core"]
